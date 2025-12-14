@@ -1,0 +1,15 @@
+# Python
+venv/
+app/.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Tooling
+.pytest_cache/
+.mypy_cache/
+
+# OS
+.DS_Store
+Thumbs.db
