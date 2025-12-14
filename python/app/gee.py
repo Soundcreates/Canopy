@@ -7,7 +7,7 @@ def compute_ndvi_gee(min_lon, min_lat, max_lon, max_lat):
     region = ee.Geometry.Rectangle([min_lon, min_lat, max_lon, max_lat])
 
     collection = (
-        ee.ImageCollection("COPERNICUS/S2_SR")
+        ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
         .filterBounds(region)
         .filterDate("2024-10-01", "2024-11-01")
         .filter(ee.Filter.lt("CLOUDY_PIXEL_PERCENTAGE", 20))
