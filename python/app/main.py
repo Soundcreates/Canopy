@@ -1,10 +1,14 @@
-from fastapi import FastAPI as fa 
-from .types import NDVIRequest
+from fastapi import FastAPI
+from fastapi import HTTPException
 from dotenv import load_dotenv
+from app.sentinel import get_sentinel_client, find_scene, download_scene, find_band
+from .types import NDVIRequest
+from app.gee import compute_ndvi_gee
+
 
 load_dotenv()
 
-app = fa(
+app = FastAPI(
     title="Canopy NDVI service",
     description = "Satellite-based NDVI verification service",
     version="0.0.1"
@@ -19,11 +23,19 @@ def health_check():
     }
 
 @app.post("/ndvi")
-def compute_ndvi(req: NDVIRequest):
- return {
-    "forestId": req.forest_id,
-    "ndvi": 0.5,
-    "ndvi_delta": 0.031,
-    "confidence": 0.93 
- }   
+def compute_ndvi_endpoint(req: NDVIRequest):
+    print("Computing ndvi endpoint")
+    ndvi_value = compute_ndvi_gee(req.min_lon, req.min_lat, req.max_lon, req.max_lat)
+    return {
+        "forestId": req.forest_id,
+        "ndvi": round(ndvi_value, 4), 
+        "confidence": 0.95
+    }
 
+def build_footprint(req):
+    return (
+        req.min_lat,
+        req.min_lon,
+        req.max_lat,
+        req.max_lon
+    )
