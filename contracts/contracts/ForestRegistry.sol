@@ -36,13 +36,13 @@ contract ForestRegistry {
         require(bytes(geoHash).length > 0, "GeoHash must be provided");
         require(forests[forestCount].owner == address(0), "Forest is already registered");
         //simple logik to create a new forest
-        Forest newForest = new Forest(
+        Forest memory newForest = Forest(
             forestCount,
             msg.sender,
             area,
             geoHash,
             true
-        )
+        );
 
         forests[forestCount] = newForest;
         ownerForests[msg.sender].push(forestCount);
@@ -50,7 +50,7 @@ contract ForestRegistry {
 
     }
     //i could have made a modifier for this but nahh ts fine
-    function deactivateForest(uint 256 forestId) external {
+    function deactivateForest(uint256 forestId) external {
         require(forests[forestId].isActive == true, "Forest is not active");
         require(forests[forestId].owner == msg.sender, "You are not the owner of this forest");
         forests[forestId].isActive = false;

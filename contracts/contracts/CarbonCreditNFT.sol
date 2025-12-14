@@ -5,7 +5,7 @@ pragma solidity ^0.8.28;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol"; // the stanmdard contract template for nfts
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract CarbonCreditNFT is ERC721 {
+contract CarbonCreditNFT is ERC721, Ownable {
     
     //desigfning the state
     enum HealthStatus{
@@ -29,7 +29,7 @@ contract CarbonCreditNFT is ERC721 {
     event MetaDataUpdate(uint indexed tokenId, string newUri); //the only metadata we will be changing is the image uri
     event HealthStatusUpdated(uint indexed tokenId, HealthStatus newStatus);
 
-    constructor( address _oracle) ERC721("CarbonCreditNFT", "CCNFT") {
+    constructor( address _oracle) ERC721("CarbonCreditNFT", "CCNFT") Ownable(msg.sender) {
         oracle = _oracle;
     }
 
@@ -40,7 +40,7 @@ contract CarbonCreditNFT is ERC721 {
 
 
     //minting the nft
-    function mintCredit(address to, uint forestId, string callData initialTokenURI) external onlyOwner returns (uint256){
+    function mintCredit(address to, uint forestId, string calldata initialTokenURI) external onlyOwner returns (uint256){
         require(forestId != 0 ,"Invalid forest ID");
 
         nextTokenId++;       
@@ -69,7 +69,7 @@ contract CarbonCreditNFT is ERC721 {
         emit HealthStatusUpdated(forestId, newStatus);
     }
 
-    function updateMetadata(uint tokenId, string memory newUri) external onlOwner {
+    function updateMetadata(uint tokenId, string memory newUri) external onlyOwner {
         require(tokenId > 0 && tokenId <= nextTokenId, "Invalid token ID");
         _tokenURIs[tokenId] = newUri;
         emit MetaDataUpdate(tokenId, newUri);
@@ -78,19 +78,20 @@ contract CarbonCreditNFT is ERC721 {
     //helper functions
     function tokenURI (uint tokenId) public view override returns (string memory){
         require(tokenId > 0 && tokenId <= nextTokenId, "Invalid token ID");
-        require(_exists(tokenId), "Token does not exist");
         return _tokenURIs[tokenId];
     }
 
-    function _beforeTokentransfer(address from, address to, uint tokenId, batchSize) internal override{
-        super._beforeTokenTransfer(from, to, tokenId, batchSize);
+    function _update(address to, uint256 tokenId, address auth) internal virtual override returns (address) {
+        address from = _ownerOf(tokenId);
+        address previousOwner = super._update(to, tokenId, auth);
 
-        if(from == addres(0) || to == address(0)) return;
+        // Only check health status for transfers (not mints or burns)
+        if(from != address(0) && to != address(0)) {
+            uint forestId = tokenForest[tokenId];
+            require(forestHealthStatus[forestId] == HealthStatus.HEALTHY, "Forest is not healthy");
+        }
 
-        uint forestId = tokenForest[tokenId];
-
-        requre(forestHealthStatus[forestId] != HealthStatus.HEALTHY, "Forest is not healthy");
-
+        return previousOwner;
     }
 
 }
