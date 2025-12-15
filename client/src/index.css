@@ -1,1 +1,21 @@
 @import 'tailwindcss';
+
+@theme {
+    --font-sans: "Playfair Display", serif;
+}
+
+@layer base {
+    body {
+        font-family: var(--font-sans);
+        font-optical-sizing: auto;
+        font-weight: 400;
+        font-style: normal;
+    }
+}
+
+.playfair-font {
+    font-family: "Playfair Display", serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+}
