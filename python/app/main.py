@@ -34,27 +34,103 @@ def compute_ndvi_endpoint(req: NDVIRequest): #this endpoint computes the ndvi va
     print("Min Latitude:", req.min_lat)
     print("Max Latitude:", req.max_lat)
     
-    print("Calling compute_ndvi_gee function")
-    ndvi_value = compute_ndvi_gee(req.min_lon, req.min_lat, req.max_lon, req.max_lat)
-    print("NDVI value computed:", ndvi_value)
+    # Validate coordinates
+    print("Validating coordinate ranges")
+    if req.min_lon >= req.max_lon:
+        print("Validation failed: min_lon must be less than max_lon")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid longitude range: min_lon ({req.min_lon}) must be less than max_lon ({req.max_lon})"
+        )
     
-    print("Rounding NDVI value to 4 decimal places")
-    rounded_ndvi = round(ndvi_value, 4)
-    print("Rounded NDVI value:", rounded_ndvi)
+    if req.min_lat >= req.max_lat:
+        print("Validation failed: min_lat must be less than max_lat")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid latitude range: min_lat ({req.min_lat}) must be less than max_lat ({req.max_lat})"
+        )
     
-    print("Preparing response data")
-    response_data = {
-        "forestId": req.forest_id,
-        "ndvi": rounded_ndvi, 
-        "confidence": 0.95,
-        "min_lon": req.min_lon,
-        "max_lon": req.max_lon,
-        "min_lat": req.min_lat,
-        "max_lat": req.max_lat
-    }
-    print("Response data prepared:", response_data)
-    print("Returning NDVI computation result")
-    return response_data
+    # Validate coordinate bounds (longitude: -180 to 180, latitude: -90 to 90)
+    if not (-180 <= req.min_lon <= 180) or not (-180 <= req.max_lon <= 180):
+        print("Validation failed: longitude out of valid range")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Longitude must be between -180 and 180. Received: min_lon={req.min_lon}, max_lon={req.max_lon}"
+        )
+    
+    if not (-90 <= req.min_lat <= 90) or not (-90 <= req.max_lat <= 90):
+        print("Validation failed: latitude out of valid range")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Latitude must be between -90 and 90. Received: min_lat={req.min_lat}, max_lat={req.max_lat}"
+        )
+    
+    # Validate area is not too small (at least 0.0001 degrees difference)
+    lon_diff = abs(req.max_lon - req.min_lon)
+    lat_diff = abs(req.max_lat - req.min_lat)
+    if lon_diff < 0.0001 or lat_diff < 0.0001:
+        print("Validation failed: area too small")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Area too small. Minimum difference: 0.0001 degrees. Received: lon_diff={lon_diff}, lat_diff={lat_diff}"
+        )
+    
+    print("Coordinate validation passed")
+    
+    try:
+        print("Calling compute_ndvi_gee function")
+        print(f"Coordinates being passed to GEE: min_lon={req.min_lon}, min_lat={req.min_lat}, max_lon={req.max_lon}, max_lat={req.max_lat}")
+        ndvi_value = compute_ndvi_gee(req.min_lon, req.min_lat, req.max_lon, req.max_lat)
+        print(f"NDVI value computed for coordinates [{req.min_lon}, {req.min_lat}, {req.max_lon}, {req.max_lat}]: {ndvi_value}")
+        
+        # Check if NDVI value is None or invalid
+        if ndvi_value is None:
+            print("NDVI value is None - no satellite data available")
+            raise HTTPException(
+                status_code=404,
+                detail="No satellite data available for the specified coordinates and date range. Try different coordinates or a different date range."
+            )
+        
+        # Validate NDVI value is a number
+        try:
+            ndvi_float = float(ndvi_value)
+        except (ValueError, TypeError):
+            print("NDVI value is not a valid number:", ndvi_value)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Invalid NDVI value returned: {ndvi_value}"
+            )
+        
+        print("Rounding NDVI value to 4 decimal places")
+        rounded_ndvi = round(ndvi_float, 4)
+        print("Rounded NDVI value:", rounded_ndvi)
+        
+        print("Preparing response data")
+        response_data = {
+            "forestId": req.forest_id,
+            "ndvi": rounded_ndvi, 
+            "confidence": 0.95,
+            "min_lon": req.min_lon,
+            "max_lon": req.max_lon,
+            "min_lat": req.min_lat,
+            "max_lat": req.max_lat
+        }
+        print("Response data prepared:", response_data)
+        print("Returning NDVI computation result")
+        return response_data
+    
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        print(f"Error during NDVI computation: {e}")
+        print(f"Error type: {type(e).__name__}")
+        import traceback
+        print("Traceback:", traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to compute NDVI: {str(e)}"
+        )
 
 def build_footprint(req):
     return (

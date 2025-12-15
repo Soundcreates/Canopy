@@ -313,17 +313,57 @@ function DevConsole() {
     setNftImage(null);
 
     try {
+      // Validate coordinates before sending
+      const minLon = parseFloat(ndviParams.min_lon);
+      const maxLon = parseFloat(ndviParams.max_lon);
+      const minLat = parseFloat(ndviParams.min_lat);
+      const maxLat = parseFloat(ndviParams.max_lat);
+
+      // Check if coordinates are valid numbers
+      if (isNaN(minLon) || isNaN(maxLon) || isNaN(minLat) || isNaN(maxLat)) {
+        throw new Error('All coordinates must be valid numbers');
+      }
+
+      // Validate coordinate ranges
+      if (minLon >= maxLon) {
+        throw new Error(`Invalid longitude range: min_lon (${minLon}) must be less than max_lon (${maxLon})`);
+      }
+
+      if (minLat >= maxLat) {
+        throw new Error(`Invalid latitude range: min_lat (${minLat}) must be less than max_lat (${maxLat})`);
+      }
+
+      // Validate coordinate bounds
+      if (minLon < -180 || maxLon > 180 || minLon > 180 || maxLon < -180) {
+        throw new Error('Longitude must be between -180 and 180');
+      }
+
+      if (minLat < -90 || maxLat > 90 || minLat > 90 || maxLat < -90) {
+        throw new Error('Latitude must be between -90 and 90');
+      }
+
+      // Validate area is not too small
+      const lonDiff = Math.abs(maxLon - minLon);
+      const latDiff = Math.abs(maxLat - minLat);
+      if (lonDiff < 0.0001 || latDiff < 0.0001) {
+        throw new Error(`Area too small. Minimum difference: 0.0001 degrees. Current: lon_diff=${lonDiff.toFixed(6)}, lat_diff=${latDiff.toFixed(6)}`);
+      }
+
       // Convert forest_id to number if it's a string
       const forestId = typeof ndviParams.forest_id === 'string' 
         ? parseInt(ndviParams.forest_id) 
         : ndviParams.forest_id;
 
+      if (isNaN(forestId) || forestId <= 0) {
+        throw new Error('Forest ID must be a positive number');
+      }
+
       const requestBody = {
         forest_id: forestId,
-        min_lon: parseFloat(ndviParams.min_lon),
-        max_lon: parseFloat(ndviParams.max_lon),
-        min_lat: parseFloat(ndviParams.min_lat),
-        max_lat: parseFloat(ndviParams.max_lat),
+        min_lon: minLon,
+        max_lon: maxLon,
+        min_lat: minLat,
+        max_lat: maxLat,
         epoch_start: ndviParams.epoch_start,
         epoch_end: ndviParams.epoch_end,
         carbon_tons: parseFloat(ndviParams.carbon_tons) || 0,

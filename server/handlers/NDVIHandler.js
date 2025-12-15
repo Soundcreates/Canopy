@@ -50,6 +50,42 @@ async function getNDVI(req, res) {
 
         // Step 2: Fetch satellite data and compute NDVI
         console.log("Step 2: Computing NDVI from satellite data");
+        console.log("Validating coordinates before sending to Python backend");
+        
+        // Validate coordinates on Node.js side as well
+        if (min_lon >= max_lon) {
+            console.log("Validation failed: min_lon must be less than max_lon");
+            return res.status(400).json({ 
+                error: 'Invalid longitude range',
+                message: `min_lon (${min_lon}) must be less than max_lon (${max_lon})`
+            });
+        }
+        
+        if (min_lat >= max_lat) {
+            console.log("Validation failed: min_lat must be less than max_lat");
+            return res.status(400).json({ 
+                error: 'Invalid latitude range',
+                message: `min_lat (${min_lat}) must be less than max_lat (${max_lat})`
+            });
+        }
+        
+        if (!(-180 <= min_lon && min_lon <= 180 && -180 <= max_lon && max_lon <= 180)) {
+            console.log("Validation failed: longitude out of valid range");
+            return res.status(400).json({ 
+                error: 'Invalid longitude',
+                message: 'Longitude must be between -180 and 180'
+            });
+        }
+        
+        if (!(-90 <= min_lat && min_lat <= 90 && -90 <= max_lat && max_lat <= 90)) {
+            console.log("Validation failed: latitude out of valid range");
+            return res.status(400).json({ 
+                error: 'Invalid latitude',
+                message: 'Latitude must be between -90 and 90'
+            });
+        }
+        
+        console.log("Coordinate validation passed");
         console.log("Sending POST request to http://localhost:8000/ndvi");
         const ndviController = new AbortController();
         const ndviTimeout = setTimeout(() => ndviController.abort(), 300000); // 5 minutes timeout
@@ -72,22 +108,53 @@ async function getNDVI(req, res) {
                     message: 'The NDVI computation took too long. Please try again.'
                 });
             }
-            throw error;
+            console.error("Network error during NDVI computation:", error.message);
+            return res.status(503).json({ 
+                error: 'Service unavailable',
+                message: `Failed to connect to NDVI service: ${error.message}`
+            });
         }
 
         if (!ndviResponse.ok) {
-            const errorText = await ndviResponse.text();
-            console.error("NDVI computation failed:", errorText);
+            let errorData;
+            try {
+                errorData = await ndviResponse.json();
+            } catch {
+                const errorText = await ndviResponse.text();
+                errorData = { detail: errorText };
+            }
+            console.error("NDVI computation failed:", errorData);
             return res.status(ndviResponse.status).json({ 
                 error: 'Failed to compute NDVI',
-                details: errorText
+                message: errorData.detail || errorData.message || 'Unknown error from NDVI service',
+                details: errorData
             });
         }
 
         console.log("Parsing response JSON from Python backend");
-        const ndviData = await ndviResponse.json();
+        let ndviData;
+        try {
+            ndviData = await ndviResponse.json();
+        } catch (error) {
+            console.error("Failed to parse NDVI response JSON:", error);
+            return res.status(500).json({ 
+                error: 'Invalid response from NDVI service',
+                message: 'The NDVI service returned invalid JSON'
+            });
+        }
+        
         console.log("NDVI data received:", JSON.stringify(ndviData, null, 2));
         console.log("Extracting NDVI and confidence values");
+        
+        // Validate response structure
+        if (!ndviData.ndvi && ndviData.ndvi !== 0) {
+            console.error("NDVI value missing or invalid in response:", ndviData);
+            return res.status(500).json({ 
+                error: 'Invalid NDVI response',
+                message: 'The NDVI service did not return a valid NDVI value'
+            });
+        }
+        
         const { ndvi, confidence, min_lon: returned_min_lon, max_lon: returned_max_lon, min_lat: returned_min_lat, max_lat: returned_max_lat } = ndviData;
         console.log("NDVI value:", ndvi);
         console.log("Confidence value:", confidence);

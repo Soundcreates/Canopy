@@ -1,9 +1,15 @@
 import DevConsole from './DevConsole'
-import './App.css'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import LandingPage from './pages/LandingPage'
+import ForestRegister from './pages/ForestRegister'
+import Transparent from './pages/Transparent'
+import Credits from './pages/Credits'
+
+import './index.css'
 
 function App() {
-  // For dev testing, just render the DevConsole
+  
+
   // This is a standalone component that doesn't use context providers
   return(
     <Router>
