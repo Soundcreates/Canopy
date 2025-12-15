@@ -1,8 +1,10 @@
-import {pgTable, varchar, timestamp, integer} from "drizzle-orm/pg-core"
+const {pgTable, varchar, timestamp, integer} = require("drizzle-orm/pg-core");
 
-export const UsersModel = pgTable('users' ,{
+const UsersModel = pgTable('users' ,{
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     address: varchar().notNull().unique(),
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
-})
+});
+
+module.exports = { UsersModel };

@@ -36,7 +36,30 @@ class ForestRegistryContext {
       }
       const tx = await this.contract.registerForest(area, geoHash);
       const receipt = await tx.wait();
-      return { hash: tx.hash, receipt };
+
+      //parsing the forestId from the receipt
+      //the event sign is ForestRegistered(uint forestId, addr owner, uint area, string geohash)
+      const eventSig = "ForestRegistered(uint forestId, address owner, uint area, string geoHash)";
+     //this is the event object
+      const eventLog= receipt.logs.find(log =>{
+        try{
+          const parsedLog = this.contract.interface.parseLog(log);
+          return parsedLog && parsedLog.name === "ForestRegistered"; //returning two things ,one -> parsedLog, second -> boo
+        }catch(error){  //err handling if the parsing fails, so the program doesnt crash out
+            console.log("Error parsing log: ", error.message);   
+            return false;
+        }
+      });
+      //the above code is checking if the eventlogs have any logs that match the event
+      if(eventLog){//now we will parse the event 
+        const parsedEvent = this.contract.interface.parseLog(eventLog);
+        const forestId = Number(parsedEvent.args.forestId);
+
+        //simply returning the hash, receipt and the forestId ,as everything has went good
+        return { hash: tx.hash, receipt, forestId };
+      }else{
+        throw new Error("Forest registered event not found in receipt");
+      }
     } catch (error) {
       throw new Error(`Failed to register forest: ${error.message}`);
     }

@@ -5,8 +5,8 @@ const dotenv = require('dotenv').config();
 
 const indexRouter = require("./routes/IndexRouter");
 
-const {drizzle} = require("drizzle-orm/node-postgres");
-const db = drizzle(process.env.DATABASE_URL);
+// Import db from config to avoid circular dependencies
+const { db } = require("./config/db");
 console.log("Db has been connected!");
 
 const allowedOrigins = ["http://localhost:5173", "https://canopy-ai.vercel.app"];

@@ -1,5 +1,4 @@
-const { verifyWalletSignature } = require("../utils/walletVerification");
-
+const {verifyMessage} = require('ethers');
 /**
  * Middleware to protect routes that require wallet authentication.
  * 
@@ -14,7 +13,7 @@ const { verifyWalletSignature } = require("../utils/walletVerification");
  * @param {Object} res - Express response object
  * @param {Function} next - Express next middleware function
  */
-function requireWalletAuth(req, res, next) {
+async function requireWalletAuth(req, res, next) {
     console.log("Middleware requireWalletAuth is in action");
   let address, message, signature;
 
@@ -29,7 +28,7 @@ function requireWalletAuth(req, res, next) {
     const authHeader = req.headers.authorization;
     
     // Remove "Bearer " prefix if present
-    const token = authHeader.startsWith("Bearer ") 
+    const token = authHeader.startsWith("Bearer ")  //bascially here we are passing the signed message in the bearer token section
       ? authHeader.slice(7) 
       : authHeader;
     
@@ -52,13 +51,38 @@ function requireWalletAuth(req, res, next) {
     });
   }
 
-  // Verify the signature
-  const isValid = verifyWalletSignature(address, message, signature);
+  // Validate signature format (should be hex string starting with 0x)
+  if (!signature || !signature.startsWith('0x') || signature.length < 130) {
+    console.log("Invalid signature format in middleware - signature should be a hex string starting with 0x");
+    return res.status(400).json({
+      error: "Invalid signature format",
+      message: "Signature must be a valid hex string starting with 0x"
+    });
+  }
 
-  if (!isValid) {
+  // Verify the signature
+  console.log("Middleware: Verifying signature for address:", address);
+  try {
+    // verifyMessage takes (message, signature) and returns the recovered address
+    const recoveredAddr = verifyMessage(message, signature);
+    console.log("Middleware: Recovered address:", recoveredAddr);
+    console.log("Middleware: Provided address:", address);
+
+    // Compare addresses case-insensitively
+    if (recoveredAddr.toLowerCase() !== address.toLowerCase()) {
+      console.log("Middleware: Signature verification failed - addresses do not match");
+      return res.status(401).json({
+        error: "Signature verification failed",
+        message: "The signature does not match the provided address"
+      });
+    }
+    console.log("Middleware: Signature verified successfully!");
+  } catch (error) {
+    console.log("Middleware: Error verifying signature:", error);
     return res.status(401).json({
       error: "Signature verification failed",
-      message: "The signature does not match the provided address"
+      message: "Invalid signature format or corrupted data",
+      details: error.message
     });
   }
 

@@ -17,7 +17,7 @@ contract ForestRegistry {
     mapping(address => uint[]) public ownerForests;
 
     //events
-    event ForestRegistered(uint forestId, address owner, uint area, string geoHash);
+    event ForestRegistered(uint forestId, address owner, uint area, string geoHash); // this the event i will be parsing to get the forestId
     event ForestDeactivated(uint forestId, address owner);
     event ForestTransferred(uint forestId, address oldOwner, address newOwner);
 
