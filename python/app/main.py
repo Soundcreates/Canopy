@@ -13,6 +13,7 @@ app = FastAPI(
     description = "Satellite-based NDVI verification service",
     version="0.0.1"
 )
+#base url: http://localhost:8000
 
 @app.get("/health")
 def health_check():

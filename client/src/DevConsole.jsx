@@ -280,6 +280,53 @@ function DevConsole() {
     }
   };
 
+  // Test POST /ndvi endpoint
+  const testNDVI = async () => {
+    setIsLoading(true);
+    setError(null);
+    setApiResponse(null);
+
+    try {
+      const requestBody = {
+        forest_id: 'test-forest-123',
+        min_lon: -122.5,
+        max_lon: -122.4,
+        min_lat: 37.7,
+        max_lat: 37.8
+      };
+
+      console.log('Testing POST /ndvi:', requestBody);
+
+      const response = await fetch(`${API_BASE_URL}/ndvi`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}: ${data.message || 'Request failed'}`);
+      }
+
+      setApiResponse(data);
+      addLog('API', `POST /ndvi - ${response.status}`, {
+        request: requestBody,
+        response: data
+      });
+
+      console.log('NDVI response:', data);
+    } catch (err) {
+      console.error('Error testing NDVI:', err);
+      setError(err.message || 'Failed to compute NDVI');
+      addLog('ERROR', 'POST /ndvi failed', { error: err.message });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Add entry to log history
   const addLog = (type, message, data = null) => {
     const logEntry = {
@@ -378,9 +425,16 @@ function DevConsole() {
             <button
               onClick={testForests}
               disabled={!signature || isLoading}
-              className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-800 disabled:cursor-not-allowed rounded"
+              className="mr-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-800 disabled:cursor-not-allowed rounded"
             >
               {isLoading ? 'Loading...' : 'Test POST /forests'}
+            </button>
+            <button
+              onClick={testNDVI}
+              disabled={isLoading}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-800 disabled:cursor-not-allowed rounded"
+            >
+              {isLoading ? 'Loading...' : 'Test POST /ndvi'}
             </button>
           </div>
         </div>
