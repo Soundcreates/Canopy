@@ -2,10 +2,7 @@ const { PinataSDK } = require("pinata");
 const { Blob } = require("buffer");
 require("dotenv").config();
 
-/**
- * Pinata IPFS Utility
- * Handles uploading images and metadata to IPFS via Pinata API using the official SDK
- */
+//This code has everything related to pinata
 
 // Initialize Pinata SDK
 let pinata = null;
@@ -32,12 +29,6 @@ function initializePinata() {
     return pinata;
 }
 
-/**
- * Upload image buffer to Pinata IPFS
- * @param {Buffer} imageBuffer - Image buffer to upload
- * @param {string} fileName - Name for the file (optional)
- * @returns {Promise<string>} IPFS hash/URI
- */
 async function uploadImageToIPFS(imageBuffer, fileName = null) {
     console.log("Starting image upload to Pinata IPFS");
     console.log("Image buffer size:", imageBuffer.length, "bytes");
@@ -96,12 +87,6 @@ async function uploadImageToIPFS(imageBuffer, fileName = null) {
     }
 }
 
-/**
- * Upload metadata JSON to Pinata IPFS
- * @param {Object} metadata - Metadata object to upload
- * @param {string} fileName - Name for the metadata file (optional)
- * @returns {Promise<string>} IPFS hash/URI
- */
 async function uploadMetadataToIPFS(metadata, fileName = null) {
     console.log("Starting metadata upload to Pinata IPFS");
     console.log("Metadata object:", JSON.stringify(metadata, null, 2));

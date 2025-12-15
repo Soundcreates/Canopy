@@ -425,10 +425,10 @@ function DevConsole() {
         {/* Header */}
         <div className="mb-8 p-4 bg-red-900 border-2 border-red-500 rounded">
           <h1 className="text-2xl font-bold text-center">
-            ⚠️ DEV / HACKATHON TEST PAGE — NOT FOR PRODUCTION ⚠️
+            Testin page
           </h1>
           <p className="text-center mt-2 text-sm">
-            Developer console for testing wallet authentication
+            just to test sm funcs in backend
           </p>
         </div>
 

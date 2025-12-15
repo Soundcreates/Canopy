@@ -1,18 +1,5 @@
 const {verifyMessage} = require('ethers');
-/**
- * Middleware to protect routes that require wallet authentication.
- * 
- * Expects the request to include wallet verification in one of these ways:
- * 1. In the request body (for POST/PUT requests)
- * 2. In the Authorization header as: "Bearer <address>:<message>:<signature>"
- * 
- * After verification, attaches the verified address to req.walletAddress
- * for use in route handlers.
- * 
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @param {Function} next - Express next middleware function
- */
+
 async function requireWalletAuth(req, res, next) {
     console.log("Middleware requireWalletAuth is in action");
   let address, message, signature;

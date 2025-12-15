@@ -2,10 +2,6 @@ const { pool } = require('../config/db');
 const fs = require('fs');
 const path = require('path');
 
-/**
- * Run a SQL migration file
- * @param {string} migrationFile - Path to the migration SQL file
- */
 async function runMigration(migrationFile) {
     console.log("Reading migration file:", migrationFile);
     const sqlContent = fs.readFileSync(migrationFile, 'utf8');
@@ -40,9 +36,6 @@ async function runMigration(migrationFile) {
     console.log("Migration completed successfully");
 }
 
-/**
- * Run all pending migrations
- */
 async function runPendingMigrations() {
     console.log("Checking for pending migrations");
     const migrationsDir = path.join(__dirname, '../migrations');
