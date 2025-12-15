@@ -8,6 +8,7 @@ import Credits from './pages/Credits'
 import LandingPage2 from './pages/LandingPage2'
 import ClickSpark from './components/ClickSpark'
 import './index.css'
+import DashboardPage from './pages/DashboardPage'
 
 function App() {
 
@@ -35,6 +36,7 @@ function AnimatedRoutes() {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<LandingPage />} />
         <Route path="/register" element={<ForestRegister />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/transparent" element={<Transparent />} />
         <Route path="/credits" element={<Credits />} />
         <Route path="/v2" element={<LandingPage2 />} />
