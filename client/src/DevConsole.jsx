@@ -30,10 +30,26 @@ function DevConsole() {
   const [signature, setSignature] = useState(null);
   const [isSigning, setIsSigning] = useState(false);
 
+  // NDVI test parameters state
+  const [ndviParams, setNdvParams] = useState({
+    forest_id: 1,
+    min_lon: -122.5,
+    max_lon: -122.4,
+    min_lat: 37.7,
+    max_lat: 37.8,
+    epoch_start: new Date().toISOString().split('T')[0],
+    epoch_end: new Date().toISOString().split('T')[0],
+    carbon_tons: 10.5,
+    area_hectares: 5.2,
+    status: 'ACTIVE'
+  });
+
   // API request state
   const [apiResponse, setApiResponse] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [nftImage, setNftImage] = useState(null);
+  const [isLoadingImage, setIsLoadingImage] = useState(false);
 
   // Request/response log
   const [logHistory, setLogHistory] = useState([]);
@@ -52,6 +68,15 @@ function DevConsole() {
       document.documentElement.style.backgroundColor = '';
     };
   }, []);
+
+  // Cleanup blob URL on unmount or when image changes
+  useEffect(() => {
+    return () => {
+      if (nftImage && nftImage.startsWith('blob:')) {
+        URL.revokeObjectURL(nftImage);
+      }
+    };
+  }, [nftImage]);
 
   // Check for MetaMask on mount
   useEffect(() => {
@@ -280,22 +305,33 @@ function DevConsole() {
     }
   };
 
-  // Test POST /ndvi endpoint
+  // Test POST /ndvi endpoint (full pipeline)
   const testNDVI = async () => {
     setIsLoading(true);
     setError(null);
     setApiResponse(null);
+    setNftImage(null);
 
     try {
+      // Convert forest_id to number if it's a string
+      const forestId = typeof ndviParams.forest_id === 'string' 
+        ? parseInt(ndviParams.forest_id) 
+        : ndviParams.forest_id;
+
       const requestBody = {
-        forest_id: 'test-forest-123',
-        min_lon: -122.5,
-        max_lon: -122.4,
-        min_lat: 37.7,
-        max_lat: 37.8
+        forest_id: forestId,
+        min_lon: parseFloat(ndviParams.min_lon),
+        max_lon: parseFloat(ndviParams.max_lon),
+        min_lat: parseFloat(ndviParams.min_lat),
+        max_lat: parseFloat(ndviParams.max_lat),
+        epoch_start: ndviParams.epoch_start,
+        epoch_end: ndviParams.epoch_end,
+        carbon_tons: parseFloat(ndviParams.carbon_tons) || 0,
+        area_hectares: parseFloat(ndviParams.area_hectares) || 0,
+        status: ndviParams.status || 'ACTIVE'
       };
 
-      console.log('Testing POST /ndvi:', requestBody);
+      console.log('Testing POST /ndvi (full pipeline):', requestBody);
 
       const response = await fetch(`${API_BASE_URL}/ndvi`, {
         method: 'POST',
@@ -317,13 +353,58 @@ function DevConsole() {
         response: data
       });
 
-      console.log('NDVI response:', data);
+      console.log('NDVI pipeline response:', data);
+      
+      // Fetch the NFT image if imageUri is available
+      if (data.data && data.data.imageUri) {
+        console.log('Fetching NFT image from IPFS:', data.data.imageUri);
+        await fetchNFTImage(data.data.imageUri);
+      }
     } catch (err) {
-      console.error('Error testing NDVI:', err);
+      console.error('Error testing NDVI pipeline:', err);
       setError(err.message || 'Failed to compute NDVI');
       addLog('ERROR', 'POST /ndvi failed', { error: err.message });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Fetch NFT image from IPFS
+  const fetchNFTImage = async (imageUri) => {
+    setIsLoadingImage(true);
+    setNftImage(null);
+    
+    try {
+      console.log('Fetching image from IPFS:', imageUri);
+      
+      // Extract hash from ipfs:// URI if needed
+      let ipfsHash = imageUri;
+      if (imageUri.startsWith('ipfs://')) {
+        ipfsHash = imageUri.replace('ipfs://', '');
+      }
+      
+      console.log('Using IPFS hash:', ipfsHash);
+      
+      // Fetch image from backend endpoint
+      const response = await fetch(`${API_BASE_URL}/ndvi/image?ipfsHash=${encodeURIComponent(ipfsHash)}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+      }
+      
+      // Convert response to blob URL for display
+      const blob = await response.blob();
+      const imageUrl = URL.createObjectURL(blob);
+      
+      console.log('Image fetched successfully');
+      setNftImage(imageUrl);
+      addLog('IMAGE', 'NFT image fetched from IPFS', { imageUri, ipfsHash });
+    } catch (err) {
+      console.error('Error fetching NFT image:', err);
+      setError(`Failed to fetch NFT image: ${err.message}`);
+      addLog('ERROR', 'Failed to fetch NFT image', { error: err.message });
+    } finally {
+      setIsLoadingImage(false);
     }
   };
 
@@ -434,8 +515,121 @@ function DevConsole() {
               disabled={isLoading}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-800 disabled:cursor-not-allowed rounded"
             >
-              {isLoading ? 'Loading...' : 'Test POST /ndvi'}
+              {isLoading ? 'Processing...' : 'Test POST /ndvi (Full Pipeline)'}
             </button>
+          </div>
+        </div>
+
+        {/* NDVI Test Parameters */}
+        <div className="mb-6 p-4 bg-gray-950 rounded border border-gray-800">
+          <h2 className="text-xl font-bold mb-4">NDVI Pipeline Test Parameters</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block mb-2 text-sm">Forest ID:</label>
+              <input
+                type="number"
+                value={ndviParams.forest_id}
+                onChange={(e) => setNdvParams({...ndviParams, forest_id: parseInt(e.target.value) || 0})}
+                className="w-full p-2 bg-gray-900 text-white rounded border border-gray-700"
+                placeholder="1"
+              />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm">Status:</label>
+              <select
+                value={ndviParams.status}
+                onChange={(e) => setNdvParams({...ndviParams, status: e.target.value})}
+                className="w-full p-2 bg-gray-900 text-white rounded border border-gray-700"
+              >
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="DEGRADED">DEGRADED</option>
+                <option value="REVOKED">REVOKED</option>
+              </select>
+            </div>
+            <div>
+              <label className="block mb-2 text-sm">Min Longitude:</label>
+              <input
+                type="number"
+                step="0.0001"
+                value={ndviParams.min_lon}
+                onChange={(e) => setNdvParams({...ndviParams, min_lon: parseFloat(e.target.value) || 0})}
+                className="w-full p-2 bg-gray-900 text-white rounded border border-gray-700"
+                placeholder="-122.5"
+              />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm">Max Longitude:</label>
+              <input
+                type="number"
+                step="0.0001"
+                value={ndviParams.max_lon}
+                onChange={(e) => setNdvParams({...ndviParams, max_lon: parseFloat(e.target.value) || 0})}
+                className="w-full p-2 bg-gray-900 text-white rounded border border-gray-700"
+                placeholder="-122.4"
+              />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm">Min Latitude:</label>
+              <input
+                type="number"
+                step="0.0001"
+                value={ndviParams.min_lat}
+                onChange={(e) => setNdvParams({...ndviParams, min_lat: parseFloat(e.target.value) || 0})}
+                className="w-full p-2 bg-gray-900 text-white rounded border border-gray-700"
+                placeholder="37.7"
+              />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm">Max Latitude:</label>
+              <input
+                type="number"
+                step="0.0001"
+                value={ndviParams.max_lat}
+                onChange={(e) => setNdvParams({...ndviParams, max_lat: parseFloat(e.target.value) || 0})}
+                className="w-full p-2 bg-gray-900 text-white rounded border border-gray-700"
+                placeholder="37.8"
+              />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm">Epoch Start:</label>
+              <input
+                type="date"
+                value={ndviParams.epoch_start}
+                onChange={(e) => setNdvParams({...ndviParams, epoch_start: e.target.value})}
+                className="w-full p-2 bg-gray-900 text-white rounded border border-gray-700"
+              />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm">Epoch End:</label>
+              <input
+                type="date"
+                value={ndviParams.epoch_end}
+                onChange={(e) => setNdvParams({...ndviParams, epoch_end: e.target.value})}
+                className="w-full p-2 bg-gray-900 text-white rounded border border-gray-700"
+              />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm">Carbon Tons:</label>
+              <input
+                type="number"
+                step="0.1"
+                value={ndviParams.carbon_tons}
+                onChange={(e) => setNdvParams({...ndviParams, carbon_tons: parseFloat(e.target.value) || 0})}
+                className="w-full p-2 bg-gray-900 text-white rounded border border-gray-700"
+                placeholder="10.5"
+              />
+            </div>
+            <div>
+              <label className="block mb-2 text-sm">Area Hectares:</label>
+              <input
+                type="number"
+                step="0.1"
+                value={ndviParams.area_hectares}
+                onChange={(e) => setNdvParams({...ndviParams, area_hectares: parseFloat(e.target.value) || 0})}
+                className="w-full p-2 bg-gray-900 text-white rounded border border-gray-700"
+                placeholder="5.2"
+              />
+            </div>
           </div>
         </div>
 
@@ -454,6 +648,35 @@ function DevConsole() {
             <pre className="text-xs bg-black p-4 rounded border border-gray-800 overflow-auto">
               {JSON.stringify(apiResponse, null, 2)}
             </pre>
+          </div>
+        )}
+
+        {/* NFT Image Display */}
+        {(nftImage || isLoadingImage) && (
+          <div className="mb-6 p-4 bg-gray-950 rounded border border-gray-800">
+            <h2 className="text-xl font-bold mb-4">NFT Image</h2>
+            {isLoadingImage ? (
+              <div className="flex items-center justify-center p-8">
+                <p className="text-gray-400">Loading image from IPFS...</p>
+              </div>
+            ) : nftImage ? (
+              <div className="space-y-4">
+                <div className="flex justify-center">
+                  <img 
+                    src={nftImage} 
+                    alt="NFT Image" 
+                    className="max-w-full h-auto rounded border border-gray-700 shadow-lg"
+                    style={{ maxHeight: '600px' }}
+                  />
+                </div>
+                {apiResponse?.data?.imageUri && (
+                  <div className="mt-4 p-3 bg-gray-900 rounded border border-gray-700">
+                    <p className="text-sm font-bold mb-2">Image URI:</p>
+                    <p className="text-xs break-all text-green-400">{apiResponse.data.imageUri}</p>
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
         )}
 

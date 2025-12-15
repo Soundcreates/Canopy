@@ -9,6 +9,18 @@ const indexRouter = require("./routes/IndexRouter");
 const { db } = require("./config/db");
 console.log("Db has been connected!");
 
+// Run pending migrations on startup
+console.log("Checking for pending database migrations");
+const { runPendingMigrations } = require("./utils/runMigration");
+runPendingMigrations().then(() => {
+    console.log("Database migrations check completed");
+}).catch(err => {
+    console.error("Error running migrations:", err);
+    console.error("Migration error details:", err.message);
+    // Don't exit - allow server to start even if migration fails
+    // This allows the server to run if columns already exist
+});
+
 const allowedOrigins = ["http://localhost:5173", "https://canopy-ai.vercel.app"];
 app.use(cors({
     origin: function (origin, callback) {

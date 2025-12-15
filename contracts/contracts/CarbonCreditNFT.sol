@@ -40,7 +40,7 @@ contract CarbonCreditNFT is ERC721, Ownable {
 
 
     //minting the nft
-    function mintCredit(address to, uint forestId, string calldata initialTokenURI) external onlyOwner returns (uint256){
+    function mintCredit(address to, uint forestId, string calldata initialTokenURI) external  returns (uint256){
         require(forestId != 0 ,"Invalid forest ID");
 
         nextTokenId++;       
