@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useWallet } from '../../contexts/WalletContext';
 import { useNavigate } from 'react-router-dom';
 import FaultyTerminal from '../FaultyTerminal';
-
+import { verifyAuth } from '../../ApiFactory/AuthAPI';
 const API_BASE_URL = 'http://localhost:3000/api';
 
 const HeroSection = ({ itemVariants }) => {

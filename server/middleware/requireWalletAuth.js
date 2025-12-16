@@ -3,18 +3,20 @@ const {verifyMessage} = require('ethers');
 async function requireWalletAuth(req, res, next) {
     console.log("Middleware requireWalletAuth is in action");
   let address, message, signature;
-
   // Try to get auth data from request body first (for POST/PUT)
   if (req.body && req.body.address && req.body.message && req.body.signature) {
+    console.log("trying to take from request body");
     address = req.body.address;
     message = req.body.message;
     signature = req.body.signature;
   } 
   // Otherwise, try to get it from Authorization header
   else if (req.headers.authorization) {
+    console.log("trying to take from authorization header");
     const authHeader = req.headers.authorization;
     
     // Remove "Bearer " prefix if present
+    console.log("Removing bearer prefix");
     const token = authHeader.startsWith("Bearer ")  //bascially here we are passing the signed message in the bearer token section
       ? authHeader.slice(7) 
       : authHeader;

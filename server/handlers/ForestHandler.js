@@ -6,18 +6,27 @@ const { eq } = require('drizzle-orm');
 
 async function registerForest(req,res) {
     console.log("Forest is being registered");
-    const {area, geoHash} = req.body;
-    const ownerAddress = req.walletAddress;
+    let {area, geoHash} = req.body;
+    const ownerAddress = req.walletAddress || req.body.account;
+    console.log("Owner address: ", ownerAddress);
     if(!area || !geoHash) {
         return res.status(400).json({error: 'Missing required fields'});
     }
+
+    // Convert area to integer (smart contract expects uint, not float)
+    // Use Math.floor to ensure we don't round up (safer for large numbers)
+    const areaInteger = Math.floor(Number(area));
+    if (isNaN(areaInteger) || areaInteger <= 0) {
+        return res.status(400).json({error: 'Invalid area value. Area must be a positive number.'});
+    }
+    console.log("Area converted to integer:", areaInteger, "(original:", area, ")");
 
     try {
         //i will need to first create an instance of the forestregistrycontext 
         console.log("Recovering forest id");
         const forestRegistryContext = new ForestRegistryContext(process.env.RPC_URL, process.env.ORACLE_PRIVATE_KEY);
         console.log("Forest registry context created");
-        const {hash, forestId} = await forestRegistryContext.registerForest(area, geoHash);
+        const {hash, forestId} = await forestRegistryContext.registerForest(areaInteger, geoHash);
         console.log("Forest id: ", forestId);
         console.log("Hash: ", hash);
         
@@ -45,7 +54,7 @@ async function registerForest(req,res) {
         const forest = await db.insert(ForestModel).values({
             forestId,
             owner: ownerAddress,
-            area,
+            area: areaInteger, // Use integer area for database (matches contract)
             geoHash,
             txHash: hash,
             isActive: true
