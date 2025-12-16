@@ -1,14 +1,14 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import Map, { NavigationControl, GeolocateControl } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { motion } from 'framer-motion';
 import Squares from '../components/SquareGrid';
 import Dither from '../components/DitherBackground';
-// Note: User needs to provide a Mapbox token. I'll use a placeholder const.
+import { registerForest } from '../ApiFactory/ForestAPI';
+import mapboxgl from 'mapbox-gl';
 
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
-
+//if you need to run the mapbox map, u need to have a mapbox account which provides a public access token
+//mapbox is free for limited usage , just need to signup using a card
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN?.trim()  ;
 // --- Components ---
 
 const IconWallet = ({ className }) => (
@@ -37,12 +37,57 @@ const InputField = ({ value, onChange, placeholder, readOnly = false, className 
 );
 
 const ForestRegister = () => {
+
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+  
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+    if(!import.meta.env.VITE_MAPBOX_TOKEN){
+      console.error('Mapbox access token is not set in env');
+      return;
+    }else{
+      console.log('Mapbox access token is set in env: ', import.meta.env.VITE_MAPBOX_TOKEN);
+    }
+    // Ensure access token is set
+    if (!mapboxgl.accessToken) {
+      console.error('Mapbox access token is not set');
+      return;
+    }
+
+    // Initialize map
+    mapRef.current = new mapboxgl.Map({
+      container: mapContainerRef.current,
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: [-62.2159, -3.4653],
+      zoom: 3.5,
+      pitch: 45,
+      bearing: -17,
+      antialias: true,
+    });
+
+    // Add navigation controls
+    mapRef.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+    
+    // Add geolocate control
+    mapRef.current.addControl(new mapboxgl.GeolocateControl({
+      positionOptions: {
+        enableHighAccuracy: true
+      },
+      trackUserLocation: true,
+      showUserHeading: true
+    }), 'top-right');
+
+    // Cleanup function
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, []);
+
   // State
-  const [viewState, setViewState] = useState({
-    longitude: -62.2159,
-    latitude: -3.4653,
-    zoom: 3.5
-  });
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -111,19 +156,9 @@ const ForestRegister = () => {
 
           {/* Map Container */}
           <div className="relative aspect-[16/9] w-full bg-[#0b0f14] border border-white/10 rounded-sm overflow-hidden shadow-2xl group">
-            {/* We need a token for this to really work. I'll wrap it in error boundary logic visually if no token */}
-            <Map
-              {...viewState}
-              onMove={evt => setViewState(evt.viewState)}
-              mapStyle="mapbox://styles/mapbox/dark-v11"
-              mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN || "pk.eyJ1Ijoic2hhbnRhbmF2IiwiYSI6ImNtMXZ6Y2Z2djAwbGoybXBxN3kwM3h4NjMifQ.Lg20K2v-L7tAhZfA1fT59Q"}
-            >
-              <NavigationControl position="top-right" />
-              <GeolocateControl position="top-right" />
-            </Map>
-
+            <div ref={mapContainerRef} className="w-full h-full" />
             {/* Map overlay elements */}
-            <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-sm">
+            <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-sm z-10">
               <span className="text-[10px] font-mono text-emerald-500 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 LIVE SATELLITE FEED

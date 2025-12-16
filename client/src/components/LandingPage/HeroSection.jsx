@@ -73,28 +73,14 @@ const HeroSection = ({ itemVariants }) => {
             const message = 'Canopy verification login';
             const signature = await signer.signMessage(message);
 
-            const response = await fetch(`${API_BASE_URL}/auth/verify`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    address: account,
-                    message: message,
-                    signature: signature
-                })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Authentication failed');
-            }
+            const response = await verifyAuth(account, message, signature); //AuthAPi.js
 
             localStorage.setItem(`canopy_auth_${account.toLowerCase()}`, JSON.stringify({
                 address: account,
                 authenticated: true,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                message: message,
+                signature: signature
             }));
 
             setIsAuthenticated(true);
