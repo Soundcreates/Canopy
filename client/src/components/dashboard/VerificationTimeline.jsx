@@ -1,7 +1,8 @@
 import React from 'react';
+import { MagicCard } from './MagicBento';
 
 const TimelineEvent = ({ date, title, subtitle, isLast }) => (
-    <div className="relative pl-8 pb-8">
+    <div className="relative pl-8 pb-8 z-10">
         {!isLast && (
             <div className="absolute top-2 left-[11px] h-full w-px bg-white/10"></div>
         )}
@@ -15,10 +16,14 @@ const TimelineEvent = ({ date, title, subtitle, isLast }) => (
 
 const VerificationTimeline = () => {
     return (
-        <div className="bg-[#11141a] border border-white/5 rounded-sm p-5">
-            <h3 className="text-sm font-medium text-white mb-6">Verification Epochs</h3>
+        <MagicCard
+            enableStars={false}
+            enableTilt={false}
+            className="!bg-[#11141a]/80"
+        >
+            <h3 className="text-sm font-medium text-white mb-6 relative z-10">Verification Epochs</h3>
 
-            <div className="mt-2">
+            <div className="mt-2 relative z-10">
                 <TimelineEvent
                     date="2024-12-14 09:21 UTC"
                     title="Epoch #402 Finalized"
@@ -37,10 +42,10 @@ const VerificationTimeline = () => {
                 />
             </div>
 
-            <button className="w-full mt-2 py-2 text-xs font-mono text-center text-gray-500 hover:text-white border border-white/5 hover:border-white/10 rounded transition-all">
+            <button className="w-full mt-2 py-2 text-xs font-mono text-center text-gray-500 hover:text-white border border-white/5 hover:border-white/10 rounded transition-all relative z-10">
                 VIEW FULL HISTORY
             </button>
-        </div>
+        </MagicCard>
     );
 };
 

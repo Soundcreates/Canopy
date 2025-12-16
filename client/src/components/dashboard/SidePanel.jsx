@@ -1,8 +1,9 @@
 import React from 'react';
 import { NDVIChart, CarbonChart } from './Charts';
+import { MagicCard } from './MagicBento';
 
 const DetailRow = ({ label, value }) => (
-    <div className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
+    <div className="flex justify-between items-center py-2 border-b border-white/5 last:border-0 relative z-10">
         <span className="text-xs text-gray-500">{label}</span>
         <span className="text-sm font-mono text-gray-300">{value}</span>
     </div>
@@ -10,10 +11,13 @@ const DetailRow = ({ label, value }) => (
 
 const SidePanel = () => {
     return (
-        <div className="space-y-6">
+        <>
             {/* Selected Asset Card */}
-            <div className="bg-[#11141a] border border-white/5 rounded-sm p-1">
-                <div className="aspect-square bg-black relative flex items-center justify-center overflow-hidden rounded-sm">
+            <MagicCard
+                enableStars={false}
+                className="!p-1 !bg-[#11141a]/80"
+            >
+                <div className="aspect-square bg-black relative flex items-center justify-center overflow-hidden rounded-sm z-10">
                     <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542273917363-3b1817f69a2d?q=80&w=2074&auto=format&fit=crop')] bg-cover bg-center opacity-50 grayscale hover:grayscale-0 transition-all duration-700"></div>
                     <div className="relative z-10 text-center">
                         <div className="text-[10px] font-mono text-emerald-500 tracking-widest mb-1">SELECTED ASSET</div>
@@ -25,7 +29,7 @@ const SidePanel = () => {
                     <div className="absolute bottom-4 left-4 text-[10px] font-mono text-white/50">lat: -3.4653 lon: -62.2159</div>
                 </div>
 
-                <div className="p-4">
+                <div className="p-4 relative z-10">
                     <h3 className="text-sm font-medium text-white mb-4">NFT Metadata</h3>
                     <DetailRow label="Minted" value="Oct 24, 2023" />
                     <DetailRow label="Biome" value="Tropical Rainforest" />
@@ -41,19 +45,29 @@ const SidePanel = () => {
                         </button>
                     </div>
                 </div>
-            </div>
+            </MagicCard>
 
             {/* Charts Section */}
-            <div className="bg-[#11141a] border border-white/5 rounded-sm p-5">
-                <h3 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-4">NDVI Trend (6mo)</h3>
-                <NDVIChart />
-            </div>
+            <MagicCard
+                enableStars={false}
+                className="!p-5 !bg-[#11141a]/80 !h-fit"
+            >
+                <h3 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-4 relative z-10">NDVI Trend (6mo)</h3>
+                <div className="relative z-10">
+                    <NDVIChart />
+                </div>
+            </MagicCard>
 
-            <div className="bg-[#11141a] border border-white/5 rounded-sm p-5">
-                <h3 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-4">Issuance History</h3>
-                <CarbonChart />
-            </div>
-        </div>
+            <MagicCard
+                enableStars={false}
+                className="!p-5 !bg-[#11141a]/80 !h-fit"
+            >
+                <h3 className="text-xs font-mono text-gray-500 uppercase tracking-wider mb-4 relative z-10">Issuance History</h3>
+                <div className="relative z-10">
+                    <CarbonChart />
+                </div>
+            </MagicCard>
+        </>
     );
 };
 

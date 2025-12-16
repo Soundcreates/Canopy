@@ -5,25 +5,30 @@ import KPIGrid from '../components/dashboard/KPIGrid';
 import ForestTable from '../components/dashboard/ForestTable';
 import VerificationTimeline from '../components/dashboard/VerificationTimeline';
 import SidePanel from '../components/dashboard/SidePanel';
+import { MagicBentoGrid } from '../components/dashboard/MagicBento';
 
 const DashboardPage = () => {
     return (
-        <div className="min-h-screen bg-[#0b0f14] text-gray-300 font-sans selection:bg-emerald-500/30">
-            <TopNav />
+        <div className="h-screen w-full bg-[#0b0f14] text-gray-300 font-sans selection:bg-emerald-500/30 flex flex-col overflow-hidden">
+            <div className="flex-none z-50">
+                <TopNav />
+            </div>
 
-            <main className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1600px] mx-auto">
-                {/* Main Content Area */}
-                <div className="lg:col-span-8 space-y-6">
-                    <KPIGrid />
-                    <ForestTable />
-                    <VerificationTimeline />
-                </div>
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative">
+                <MagicBentoGrid className="p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 max-w-[1600px] mx-auto pb-8">
+                    {/* Main Content Area */}
+                    <div className="lg:col-span-8 flex flex-col gap-4">
+                        <KPIGrid />
+                        <ForestTable />
+                        <VerificationTimeline />
+                    </div>
 
-                {/* Side Panel */}
-                <div className="lg:col-span-4">
-                    <SidePanel />
-                </div>
-            </main>
+                    {/* Side Panel */}
+                    <div className="lg:col-span-4 flex flex-col gap-4">
+                        <SidePanel />
+                    </div>
+                </MagicBentoGrid>
+            </div>
         </div>
     );
 };

@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { MagicCard } from './MagicBento';
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -27,15 +28,19 @@ const ForestTable = () => {
     ];
 
     return (
-        <div className="bg-[#11141a] border border-white/5 rounded-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-white/5 flex justify-between items-center">
+        <MagicCard
+            enableStars={false}
+            className="!p-0 !bg-[#11141a]/80 !h-fit"
+            enableTilt={false}
+        >
+            <div className="px-5 py-4 border-b border-white/5 flex justify-between items-center relative z-10">
                 <h3 className="text-sm font-medium text-white">Forest Registry</h3>
                 <button className="text-xs text-emerald-500 hover:text-emerald-400 font-mono transition-colors">
                     EXPORT DATA
                 </button>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto relative z-10">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-white/[0.02] text-xs font-mono text-gray-500 uppercase">
@@ -69,7 +74,7 @@ const ForestTable = () => {
                     </tbody>
                 </table>
             </div>
-        </div>
+        </MagicCard>
     );
 };
 
