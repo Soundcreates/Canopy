@@ -10,6 +10,7 @@ import { useWallet } from '../contexts/WalletContext';
 import mapboxgl from 'mapbox-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import * as turf from '@turf/turf';
+import { useNavigate } from 'react-router-dom';
 
 //if you need to run the mapbox map, u need to have a mapbox account which provides a public access token
 //mapbox is free for limited usage , just need to signup using a card
@@ -43,7 +44,7 @@ const InputField = ({ value, onChange, placeholder, readOnly = false, className 
 
 const ForestRegister = () => {
   const { account } = useWallet();
-  
+  const navigate = useNavigate();
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const drawRef = useRef(null);
@@ -458,12 +459,14 @@ const ForestRegister = () => {
       console.log('Forest registration successful:', response);
       
       // Show success message
-      alert(`Forest registered successfully! Forest ID: ${response.forest?.forestId || 'N/A'}`);
+      // alert(`Forest registered successfully! Forest ID: ${response.forest?.forestId || 'N/A'}`);
       
       // TODO: After successful registration, you may want to:
       // 1. Clear the form and plot
       // 2. Redirect to dashboard or show success screen
       // 3. Optionally trigger NDVI processing with the forest_id from response
+      setPlotData(null);
+      navigate('/dashboard');
       
       // Example for NDVI processing (would be called separately):
       // {

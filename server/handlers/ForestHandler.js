@@ -68,4 +68,25 @@ async function registerForest(req,res) {
     }
 }
 
-module.exports = { registerForest };
+async function getForests(req,res) {
+    console.log("Getting forests");
+    try {
+        let ownerAddress = req.walletAddress;
+        console.log("Owner address: ", ownerAddress);
+        if(!ownerAddress) {
+            return res.status(400).json({error: 'Wallet not connected'});
+        }
+        // Use drizzle's eq function for where clause
+        const forests = await db.select()
+            .from(ForestModel)
+            .where(eq(ForestModel.owner, ownerAddress.toLowerCase()));
+        console.log("Forests: ", forests);
+        return res.status(200).json({forests: forests});
+    } catch(error) {
+        console.error("Error getting forests:", error);
+        return res.status(500).json({error: 'Failed to get forests', details: error.message});
+    }
+}
+
+
+module.exports = { registerForest, getForests };

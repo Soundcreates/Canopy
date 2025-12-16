@@ -1,5 +1,7 @@
-import React from 'react';
+import React, {useState, useEffect } from 'react';
 import { MagicCard } from './MagicBento';
+import { getForests } from '../../ApiFactory/ForestAPI';
+
 
 const TimelineEvent = ({ date, title, subtitle, isLast }) => (
     <div className="relative pl-8 pb-8 z-10">
@@ -15,6 +17,7 @@ const TimelineEvent = ({ date, title, subtitle, isLast }) => (
 );
 
 const VerificationTimeline = () => {
+
     return (
         <MagicCard
             enableStars={false}
