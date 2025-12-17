@@ -110,6 +110,242 @@ export const registerForest = async (area, geoHash, account) => {
     }
 };
 
+
+export const requestNDVI = async (
+    forest_id,
+    min_lon,
+    max_lon,
+    min_lat,
+    max_lat,
+    options = {}
+) => {
+    console.log("ForestAPI: Starting NDVI computation request");
+    console.log("ForestAPI: Forest ID:", forest_id);
+    console.log("ForestAPI: Coordinates:", { min_lon, max_lon, min_lat, max_lat });
+
+    // Validate required fields
+    if (!forest_id || min_lon === undefined || max_lon === undefined || 
+        min_lat === undefined || max_lat === undefined) {
+        console.log("ForestAPI: Error - Missing required fields for NDVI request");
+        throw new Error('forest_id, min_lon, max_lon, min_lat, and max_lat are required');
+    }
+
+    // Validate coordinates
+    if (min_lon >= max_lon) {
+        console.log("ForestAPI: Error - Invalid longitude range");
+        throw new Error(`min_lon (${min_lon}) must be less than max_lon (${max_lon})`);
+    }
+
+    if (min_lat >= max_lat) {
+        console.log("ForestAPI: Error - Invalid latitude range");
+        throw new Error(`min_lat (${min_lat}) must be less than max_lat (${max_lat})`);
+    }
+
+    try {
+        console.log("ForestAPI: Preparing NDVI request");
+        const requestBody = {
+            forest_id,
+            min_lon,
+            max_lon,
+            min_lat,
+            max_lat,
+            epoch_start: options.epoch_start || new Date().toISOString().split('T')[0],
+            epoch_end: options.epoch_end || new Date().toISOString().split('T')[0],
+            carbon_tons: options.carbon_tons,
+            area_hectares: options.area_hectares,
+            status: options.status || 'ACTIVE'
+        };
+
+        console.log("ForestAPI: Sending POST request to /api/ndvi");
+        const response = await fetch(`${API_BASE_URL}/api/ndvi`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+        });
+
+        console.log("ForestAPI: Response status:", response.status);
+        
+        const data = await response.json();
+        console.log("ForestAPI: Response data received");
+
+        if (!response.ok) {
+            console.log("ForestAPI: NDVI computation failed:", data.error || data.message);
+            throw new Error(data.error || data.message || `HTTP ${response.status}: NDVI computation failed`);
+        }
+
+        console.log("ForestAPI: NDVI computation completed successfully!");
+        console.log("ForestAPI: NDVI value:", data.ndvi);
+        console.log("ForestAPI: Confidence:", data.confidence);
+        return data;
+    } catch (error) {
+        console.log("ForestAPI: Error during NDVI computation:", error);
+        
+        if (error.message) {
+            throw error;
+        }
+        
+        throw new Error(`Failed to compute NDVI: ${error.message}`);
+    }
+};
+
+
+//this is the function that will be used to start NDVI monitoring every 3 hours
+export const startNDVIMonitoring = (
+    forest_id,
+    min_lon,
+    max_lon,
+    min_lat,
+    max_lat,
+    options = {},
+    onNDVIUpdate = null,
+    onError = null
+) => {
+    console.log("ForestAPI: Starting NDVI monitoring for forest ID:", forest_id);
+    console.log("ForestAPI: Monitoring interval: 3 hours (10800000 ms)");
+
+    const INTERVAL_MS = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
+
+    // Create a function to make NDVI request
+    const makeNDVIRequest = async () => {
+        try {
+            console.log("ForestAPI: Periodic NDVI request triggered");
+            
+            const result = await requestNDVI(
+                forest_id,
+                min_lon,
+                max_lon,
+                min_lat,
+                max_lat,
+                options
+            );
+
+            console.log("ForestAPI: Periodic NDVI update received");
+            if (onNDVIUpdate) {
+                onNDVIUpdate(result);
+            }
+        } catch (error) {
+            console.log("ForestAPI: Error in periodic NDVI request:", error);
+            if (onError) {
+                onError(error);
+            }
+        }
+    };
+
+    // Make initial request
+    console.log("ForestAPI: Making initial NDVI request");
+    makeNDVIRequest();
+
+    // Set up interval
+    console.log("ForestAPI: Setting up 3-hour interval for NDVI monitoring");
+    const intervalId = setInterval(makeNDVIRequest, INTERVAL_MS);
+
+    // Return function to stop monitoring
+    return () => {
+        console.log("ForestAPI: Stopping NDVI monitoring");
+        clearInterval(intervalId);
+    };
+};
+
+/**
+ * Fetches NDVI data for a specific forest
+ * This is used for continuous fetching in components like VerificationTimeline
+ * @param {number} forest_id - Forest ID
+ * @returns {Promise<Object>} NDVI data from the database
+ */
+export const getNDVIData = async (forest_id) => {
+    console.log("ForestAPI: Fetching NDVI data for forest ID:", forest_id);
+    
+    if (!forest_id) {
+        console.log("ForestAPI: Error - Forest ID is required");
+        throw new Error('Forest ID is required');
+    }
+
+    try {
+        // Get account from localStorage auth data
+        let account = null;
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('canopy_auth_')) {
+                const storedAuth = localStorage.getItem(key);
+                if (storedAuth) {
+                    try {
+                        const authData = JSON.parse(storedAuth);
+                        if (authData.address) {
+                            account = authData.address;
+                            break;
+                        }
+                    } catch (e) {
+                        // Continue searching
+                    }
+                }
+            }
+        }
+
+        if (!account) {
+            throw new Error('Wallet not connected. Please sign in first.');
+        }
+
+        const storedAuth = localStorage.getItem(`canopy_auth_${account.toLowerCase()}`);
+        if (!storedAuth) {
+            throw new Error('Authentication not found. Please sign in first.');
+        }
+
+        const authData = JSON.parse(storedAuth);
+        if (!authData.signature || !authData.message) {
+            throw new Error('Authentication data is incomplete. Please sign in again.');
+        }
+
+        const address = authData.address || account;
+        const message = authData.message;
+        const signature = String(authData.signature).trim();
+        const authHeader = `Bearer ${address}:${message}:${signature}`;
+
+        console.log("ForestAPI: Sending GET request to fetch forest data");
+        const response = await fetch(`${API_BASE_URL}/api/forests/getForests`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': authHeader,
+            },
+        });
+
+        console.log("ForestAPI: Response status:", response.status);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            console.error("ForestAPI: Error response:", errorData);
+            throw new Error(errorData.error || errorData.message || `HTTP ${response.status}: Request failed`);
+        }
+
+        const data = await response.json();
+        console.log("ForestAPI: Forest data received");
+
+        // Backend returns {forests: [...]}, so we need to access data.forests
+        const forests = data.forests || [];
+        
+        // Find the specific forest and return its NDVI data
+        const forest = forests.find(f => f.forestId === forest_id) || null;
+        
+        if (!forest) {
+            console.log("ForestAPI: Forest not found");
+            return null;
+        }
+
+        console.log("ForestAPI: NDVI data retrieved successfully");
+        return {
+            forestId: forest.forestId,
+            lastNDVI: forest.lastNDVI,
+            lastVerificationDate: forest.lastVerificationDate,
+            forest: forest
+        };
+    } catch (error) {
+        console.log("ForestAPI: Error fetching NDVI data:", error);
+        throw error;
+    }
+};
+
 export const getForests = async () => {
     console.log("Getting forests");
     try {
@@ -191,6 +427,10 @@ export const getForests = async () => {
         }
         console.log("Response is ok");
         const data = await response.json();
+        console.log("ForestAPI: Raw response data:", data);
+        console.log("ForestAPI: Data type:", typeof data);
+        console.log("ForestAPI: Data.forests:", data.forests);
+        console.log("ForestAPI: Is data.forests an array?", Array.isArray(data.forests));
         return {success: true, data: data};
     } catch (error) {
         console.error('Error getting forests:', error);

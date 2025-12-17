@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { MagicCard } from './MagicBento';
+import { getForests } from '../../ApiFactory/ForestAPI';
 
 const KPICard = ({ title, value, unit, change, trend = 'neutral' }) => (
     <MagicCard
@@ -25,34 +26,84 @@ const KPICard = ({ title, value, unit, change, trend = 'neutral' }) => (
 );
 
 const KPIGrid = () => {
+    const [kpiData, setKpiData] = useState({
+        forestsCount: 0,
+        verifiedArea: 0,
+        carbonIssued: 0,
+        networkHealth: 0
+    });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchKPIData = async () => {
+            try {
+                setLoading(true);
+                const response = await getForests();
+                
+                if (response.success && response.data && response.data.forests) {
+                    const forests = response.data.forests;
+                    
+                    // Calculate KPIs
+                    const forestsCount = forests.length;
+                    
+                    // Calculate total area in hectares (area is in square meters)
+                    const totalAreaSqMeters = forests.reduce((sum, f) => sum + (Number(f.area) || 0), 0);
+                    const verifiedArea = totalAreaSqMeters / 10000; // Convert to hectares
+                    
+                    // Calculate total carbon credits
+                    const carbonIssued = forests.reduce((sum, f) => sum + (Number(f.totalCarbonCredits) || 0), 0);
+                    
+                    // Calculate average confidence (if available)
+                    const forestsWithConfidence = forests.filter(f => f.lastConfidence);
+                    const avgConfidence = forestsWithConfidence.length > 0
+                        ? forestsWithConfidence.reduce((sum, f) => sum + parseFloat(f.lastConfidence || 0), 0) / forestsWithConfidence.length
+                        : 0;
+                    
+                    setKpiData({
+                        forestsCount,
+                        verifiedArea,
+                        carbonIssued: carbonIssued / 1000, // Convert to metric tons (assuming credits are in kg)
+                        networkHealth: avgConfidence
+                    });
+                }
+            } catch (error) {
+                console.error("Error fetching KPI data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchKPIData();
+    }, []);
+
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KPICard
                 title="Forests Registered"
-                value="1,240"
-                change="+12 this month"
-                trend="up"
+                value={loading ? "..." : kpiData.forestsCount.toLocaleString()}
+                change={kpiData.forestsCount > 0 ? `${kpiData.forestsCount} registered` : "No forests yet"}
+                trend={kpiData.forestsCount > 0 ? "up" : "neutral"}
             />
             <KPICard
                 title="Verified Area"
-                value="84,300"
+                value={loading ? "..." : kpiData.verifiedArea.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 unit="ha"
-                change="+2.4% vs last epoch"
-                trend="up"
+                change={kpiData.verifiedArea > 0 ? "Total verified" : "No area verified"}
+                trend={kpiData.verifiedArea > 0 ? "up" : "neutral"}
             />
             <KPICard
                 title="Carbon Issued"
-                value="4.2"
+                value={loading ? "..." : kpiData.carbonIssued.toLocaleString(undefined, { maximumFractionDigits: 1 })}
                 unit="MT"
-                change="Verified Supply"
+                change={kpiData.carbonIssued > 0 ? "Verified Supply" : "No credits issued"}
                 trend="neutral"
             />
             <KPICard
                 title="Network Health"
-                value="98.2"
+                value={loading ? "..." : kpiData.networkHealth.toFixed(1)}
                 unit="%"
-                change="Avg. Confidence"
-                trend="up"
+                change={kpiData.networkHealth > 0 ? "Avg. Confidence" : "No data yet"}
+                trend={kpiData.networkHealth > 80 ? "up" : "neutral"}
             />
         </div>
     );

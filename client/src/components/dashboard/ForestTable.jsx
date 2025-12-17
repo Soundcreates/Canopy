@@ -24,6 +24,14 @@ const ForestTable = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // Debug: Log state changes
+    useEffect(() => {
+        console.log("ForestTable: State changed - forests:", forests);
+        console.log("ForestTable: State changed - forests.length:", forests.length);
+        console.log("ForestTable: State changed - loading:", loading);
+        console.log("ForestTable: State changed - error:", error);
+    }, [forests, loading, error]);
+
     //we are fetching real data from backend
     useEffect(() => {
         const fetchForests = async () => {
@@ -31,54 +39,125 @@ const ForestTable = () => {
                 setLoading(true);
                 setError(null);
                 const response = await getForests();
-                if(response.success && response.data && response.data.forests){
+                console.log("ForestTable: Full response:", response);
+                console.log("ForestTable: Response data:", response.data);
+                console.log("ForestTable: Response data.forests:", response.data?.forests);
+                
+                // Handle both possible response structures
+                let forestsArray = [];
+                if (response && response.success && response.data) {
+                    // Backend returns {forests: [...]}
+                    if (response.data.forests && Array.isArray(response.data.forests)) {
+                        forestsArray = response.data.forests;
+                    } else if (Array.isArray(response.data)) {
+                        // Fallback: if data itself is an array
+                        forestsArray = response.data;
+                    } else if (response.data && typeof response.data === 'object') {
+                        // Try to find any array property
+                        const keys = Object.keys(response.data);
+                        console.log("ForestTable: Response.data keys:", keys);
+                        for (const key of keys) {
+                            if (Array.isArray(response.data[key])) {
+                                console.log(`ForestTable: Found array at response.data.${key}`);
+                                forestsArray = response.data[key];
+                                break;
+                            }
+                        }
+                    }
+                } else if (response && Array.isArray(response)) {
+                    // Direct array response
+                    forestsArray = response;
+                } else if (response && response.data && Array.isArray(response.data)) {
+                    // Response with data as array
+                    forestsArray = response.data;
+                }
+                
+                console.log("ForestTable: Forests array:", forestsArray);
+                console.log("ForestTable: Found", forestsArray.length, "forests");
+                
+                if(forestsArray.length > 0){
+                    console.log("ForestTable: Processing", forestsArray.length, "forests");
                     // Transform backend data to match component expectations
-                    const transformedForests = response.data.forests.map(forest => {
-                        // Convert area from square meters to hectares
-                        const areaHectares = forest.area ? (forest.area / 10000).toFixed(2) : 0;
-                        
-                        // Format NDVI - add + sign if positive, handle undefined
-                        let ndvi = 'N/A';
-                        if (forest.lastNDVI) {
-                            const ndviValue = parseFloat(forest.lastNDVI);
-                            ndvi = ndviValue >= 0 ? `+${ndviValue.toFixed(2)}` : ndviValue.toFixed(2);
+                    const transformedForests = forestsArray.map((forest, index) => {
+                        try {
+                            console.log(`ForestTable: Processing forest ${index + 1}:`, forest);
+                            
+                            // Convert area from square meters to hectares
+                            // Handle bigint/string area values
+                            const areaValue = forest.area ? (typeof forest.area === 'string' ? parseFloat(forest.area) : Number(forest.area)) : 0;
+                            const areaHectares = areaValue > 0 ? (areaValue / 10000).toFixed(2) : '0.00';
+                            
+                            // Format NDVI - add + sign if positive, handle undefined
+                            let ndvi = 'N/A';
+                            if (forest.lastNDVI) {
+                                const ndviValue = parseFloat(forest.lastNDVI);
+                                if (!isNaN(ndviValue)) {
+                                    ndvi = ndviValue >= 0 ? `+${ndviValue.toFixed(2)}` : ndviValue.toFixed(2);
+                                }
+                            }
+                            
+                            // Format confidence - add % sign, handle undefined
+                            const conf = forest.lastConfidence ? `${parseFloat(forest.lastConfidence).toFixed(1)}%` : 'N/A';
+                            
+                            // Format carbon credits
+                            const carbon = forest.totalCarbonCredits ? forest.totalCarbonCredits.toLocaleString() : '0';
+                            
+                            // Determine status based on isActive
+                            let status = 'ACTIVE';
+                            if (!forest.isActive) {
+                                status = 'REVOKED';
+                            } else if (!forest.lastNDVI) {
+                                status = 'ANALYZING';
+                            }
+                            
+                            const transformed = {
+                                id: `FST-${String(forest.forestId).padStart(4, '0')}`, // Format ID like FST-0001
+                                area: parseFloat(areaHectares),
+                                ndvi: ndvi,
+                                conf: conf,
+                                carbon: carbon,
+                                status: status,
+                                // Keep original data for reference
+                                original: forest
+                            };
+                            
+                            console.log(`ForestTable: Transformed forest ${index + 1}:`, transformed);
+                            return transformed;
+                        } catch (transformError) {
+                            console.error(`ForestTable: Error transforming forest ${index + 1}:`, transformError, forest);
+                            // Return a fallback object so we don't lose the forest
+                            return {
+                                id: `FST-${String(forest.forestId || index + 1).padStart(4, '0')}`,
+                                area: 0,
+                                ndvi: 'N/A',
+                                conf: 'N/A',
+                                carbon: '0',
+                                status: 'ACTIVE',
+                                original: forest
+                            };
                         }
-                        
-                        // Format confidence - add % sign, handle undefined
-                        const conf = forest.lastConfidence ? `${parseFloat(forest.lastConfidence).toFixed(1)}%` : 'N/A';
-                        
-                        // Format carbon credits
-                        const carbon = forest.totalCarbonCredits ? forest.totalCarbonCredits.toLocaleString() : '0';
-                        
-                        // Determine status based on isActive
-                        let status = 'ACTIVE';
-                        if (!forest.isActive) {
-                            status = 'REVOKED';
-                        } else if (!forest.lastNDVI) {
-                            status = 'ANALYZING';
-                        }
-                        
-                        return {
-                            id: `FST-${String(forest.forestId).padStart(4, '0')}`, // Format ID like FST-0001
-                            area: parseFloat(areaHectares),
-                            ndvi: ndvi,
-                            conf: conf,
-                            carbon: carbon,
-                            status: status,
-                            // Keep original data for reference
-                            original: forest
-                        };
                     });
                     
+                    console.log("ForestTable: All transformed forests:", transformedForests);
+                    console.log("ForestTable: Setting forests state with", transformedForests.length, "items");
                     setForests(transformedForests);
-                    console.log("Successfully fetched and transformed forests:", transformedForests);
+                    console.log("ForestTable: State set successfully");
                 } else {
-                    console.error("Error fetching forests:", response.error);
-                    setError(response.error || "Failed to fetch forests");
+                    console.warn("ForestTable: No forests found in response");
+                    console.log("ForestTable: Response structure:", JSON.stringify(response, null, 2));
+                    console.log("ForestTable: Response.success:", response.success);
+                    console.log("ForestTable: Response.data:", response.data);
+                    setForests([]); // Set empty array instead of error if no forests
                 }
             } catch (err) {
-                console.error("Error fetching forests:", err);
+                console.error("ForestTable: Error fetching forests:", err);
+                console.error("ForestTable: Error details:", {
+                    message: err.message,
+                    stack: err.stack,
+                    name: err.name
+                });
                 setError(err.message || "Failed to fetch forests");
+                setForests([]); // Set empty array on error
             } finally {
                 setLoading(false);
             }
@@ -109,7 +188,7 @@ const ForestTable = () => {
                 </button>
             </div>
 
-            <div className="overflow-x-auto relative z-10">
+            <div className="overflow-x-auto relative z-10 scrollbar-hide"> {/* This is the table container */}
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-white/[0.02] text-xs font-mono text-gray-500 uppercase">
@@ -138,19 +217,25 @@ const ForestTable = () => {
                             <tr>
                                 <td colSpan="6" className="px-5 py-8 text-center text-xs text-gray-500">
                                     No forests registered yet
+                                    <br />
+                                    <span className="text-[10px] text-gray-600 mt-1 block">
+                                        (Debug: forests.length = {forests.length}, loading = {String(loading)}, error = {error || 'none'})
+                                    </span>
                                 </td>
                             </tr>
-                        ) : (
-                            forests.map((forest, i) => (
+                        ) : ( 
+                            forests.map((forest, i) => {
+                                console.log(`ForestTable: Rendering forest ${i}:`, forest);
+                                return (
                                 <motion.tr
-                                    key={forest.id || i}
+                                    key={forest.id || `forest-${i}`}
                                     initial={{ opacity: 0, x: -10 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: i * 0.05 }}
                                     className="hover:bg-white/[0.02] transition-colors cursor-pointer group"
                                 >
-                                    <td className="px-5 py-3 font-mono text-gray-300 group-hover:text-emerald-400 transition-colors">{forest.id}</td>
-                                    <td className="px-5 py-3 text-gray-400">{forest.area.toLocaleString()}</td>
+                                    <td className="px-5 py-3 font-mono text-gray-300 group-hover:text-emerald-400 transition-colors">{forest.id || 'N/A'}</td>
+                                    <td className="px-5 py-3 text-gray-400">{typeof forest.area === 'number' ? forest.area.toLocaleString() : String(forest.area || '0')}</td>
                                     <td className={`px-5 py-3 font-mono ${forest.ndvi && forest.ndvi.startsWith('+') ? 'text-emerald-500' : 'text-yellow-500'}`}>
                                         {forest.ndvi}
                                     </td>
@@ -160,7 +245,8 @@ const ForestTable = () => {
                                         <StatusBadge status={forest.status} />
                                     </td>
                                 </motion.tr>
-                            ))
+                                );
+                            })
                         )}
                     </tbody>
                 </table>

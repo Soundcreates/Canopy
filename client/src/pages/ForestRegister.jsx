@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import Squares from '../components/SquareGrid';
 import Dither from '../components/DitherBackground';
 import PlotInfo from '../components/PlotInfo';
-import { registerForest } from '../ApiFactory/ForestAPI';
+import { registerForest, requestNDVI, startNDVIMonitoring } from '../ApiFactory/ForestAPI';
 import { useWallet } from '../contexts/WalletContext';
 import mapboxgl from 'mapbox-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
@@ -54,6 +54,7 @@ const ForestRegister = () => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authStatus, setAuthStatus] = useState(null); // null = checking, true = authenticated, false = not authenticated
+  const monitoringStopRef = useRef(null); // Store the stop function for monitoring
 
   // Check authentication status on mount and when account changes
   useEffect(() => {
@@ -237,6 +238,12 @@ const ForestRegister = () => {
         mapRef.current.remove();
         mapRef.current = null;
         drawRef.current = null;
+      }
+      
+      // Stop monitoring if component unmounts
+      if (monitoringStopRef.current) {
+        monitoringStopRef.current();
+        monitoringStopRef.current = null;
       }
     };
   }, []);
@@ -458,26 +465,80 @@ const ForestRegister = () => {
       
       console.log('Forest registration successful:', response);
       
+      // Extract forest ID from response
+      const forestId = response.forest?.[0]?.forestId || response.forest?.forestId;
+      
+      if (!forestId) {
+        console.error('Forest ID not found in response:', response);
+        throw new Error('Forest registration succeeded but forest ID not found in response');
+      }
+
+      console.log('Forest ID received:', forestId);
+      
+      // Immediately call NDVI endpoint after registration
+      console.log('Calling NDVI endpoint immediately after registration');
+      try {
+        await requestNDVI(
+          forestId,
+          plotData.min_lon,
+          plotData.max_lon,
+          plotData.min_lat,
+          plotData.max_lat,
+          {
+            area_hectares: plotData.areaHectares,
+            status: 'ACTIVE'
+          }
+        );
+        console.log('Initial NDVI computation completed successfully');
+      } catch (ndviError) {
+        console.error('Error calling initial NDVI:', ndviError);
+        // Don't throw - allow registration to succeed even if initial NDVI fails
+        // The monitoring will retry later
+      }
+
+      // Start 3-hour monitoring for this forest
+      console.log('Starting 3-hour NDVI monitoring');
+      const stopMonitoring = startNDVIMonitoring(
+        forestId,
+        plotData.min_lon,
+        plotData.max_lon,
+        plotData.min_lat,
+        plotData.max_lat,
+        {
+          area_hectares: plotData.areaHectares,
+          status: 'ACTIVE'
+        },
+        (ndviData) => {
+          console.log('NDVI update received from monitoring:', ndviData);
+        },
+        (error) => {
+          console.error('NDVI monitoring error:', error);
+        }
+      );
+
+      // Store the stop function (in case we need to stop it later)
+      monitoringStopRef.current = stopMonitoring;
+      
+      // Store monitoring info in localStorage so it persists across page reloads
+      const monitoringKey = `ndvi_monitoring_${forestId}`;
+      localStorage.setItem(monitoringKey, JSON.stringify({
+        forestId,
+        min_lon: plotData.min_lon,
+        max_lon: plotData.max_lon,
+        min_lat: plotData.min_lat,
+        max_lat: plotData.max_lat,
+        area_hectares: plotData.areaHectares,
+        startedAt: new Date().toISOString()
+      }));
+      
       // Show success message
-      // alert(`Forest registered successfully! Forest ID: ${response.forest?.forestId || 'N/A'}`);
+      // alert(`Forest registered successfully! Forest ID: ${forestId}`);
       
-      // TODO: After successful registration, you may want to:
-      // 1. Clear the form and plot
-      // 2. Redirect to dashboard or show success screen
-      // 3. Optionally trigger NDVI processing with the forest_id from response
+      // Clear the form and plot
       setPlotData(null);
-      navigate('/dashboard');
       
-      // Example for NDVI processing (would be called separately):
-      // {
-      //   forest_id: response.forest.forestId,
-      //   min_lon: plotData.min_lon,
-      //   max_lon: plotData.max_lon,
-      //   min_lat: plotData.min_lat,
-      //   max_lat: plotData.max_lat,
-      //   area_hectares: plotData.areaHectares,
-      //   // Optional: epoch_start, epoch_end, carbon_tons, status
-      // }
+      // Navigate to dashboard
+      navigate('/dashboard');
       
     } catch (error) {
       console.error('Error submitting forest registration:', error);

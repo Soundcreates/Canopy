@@ -53,8 +53,8 @@ async function registerForest(req,res) {
         
         const forest = await db.insert(ForestModel).values({
             forestId,
-            owner: ownerAddress,
-            area: areaInteger, // Use integer area for database (matches contract)
+            owner: ownerAddress.toLowerCase(), // Store in lowercase for consistency
+            area: areaInteger, // Area as bigint in database (supports large values, matches contract uint)
             geoHash,
             txHash: hash,
             isActive: true

@@ -1,11 +1,11 @@
-const { pgTable, timestamp, varchar, boolean, integer, foreignKey } = require('drizzle-orm/pg-core');
+const { pgTable, timestamp, varchar, boolean, integer, bigint, foreignKey } = require('drizzle-orm/pg-core');
 const { UsersModel } = require('./UserModel');
 
 const ForestModel = pgTable("forest", {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
     forestId: integer().notNull().unique(),
     owner: varchar().notNull(),
-    area: integer().notNull(),
+    area: bigint({ mode: 'number' }).notNull(),
     geoHash: varchar().notNull(),
     txHash: varchar().notNull().unique(),
     isActive: boolean().notNull().default(true),
