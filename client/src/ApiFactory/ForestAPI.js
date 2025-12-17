@@ -346,6 +346,85 @@ export const getNDVIData = async (forest_id) => {
     }
 };
 
+/**
+ * Fetches NFT metadata for a forest
+ * @param {Object} forest - Forest object with latestTokenId and latestMetadataUri
+ * @returns {Promise<Object>} NFT data including metadata from IPFS and contract data
+ */
+export const getForestNFTData = async (forest) => {
+    console.log("ForestAPI: Fetching NFT data for forest:", forest.forestId);
+    
+    if (!forest) {
+        console.log("ForestAPI: Error - Forest object is required");
+        throw new Error('Forest object is required');
+    }
+
+    if (!forest.latestTokenId) {
+        console.log("ForestAPI: No token ID found for forest:", forest.forestId);
+        return null; // No NFT minted yet
+    }
+
+    try {
+        // Fetch metadata from IPFS
+        let metadata = null;
+        let imageUrl = null;
+        
+        if (forest.latestMetadataUri) {
+            console.log("ForestAPI: Fetching metadata from IPFS URI:", forest.latestMetadataUri);
+            
+            // Extract IPFS hash from URI (handle both ipfs:// and direct hash)
+            let ipfsHash = forest.latestMetadataUri;
+            if (ipfsHash.startsWith('ipfs://')) {
+                ipfsHash = ipfsHash.replace('ipfs://', '');
+            }
+            
+            // Use Pinata gateway or public IPFS gateway
+            const gatewayUrl = 'https://gateway.pinata.cloud';
+            const metadataUrl = `${gatewayUrl}/ipfs/${ipfsHash}`;
+            
+            console.log("ForestAPI: Fetching metadata from:", metadataUrl);
+            const metadataResponse = await fetch(metadataUrl);
+            
+            if (metadataResponse.ok) {
+                metadata = await metadataResponse.json();
+                console.log("ForestAPI: Metadata fetched successfully");
+                
+                // Extract image URL from metadata
+                if (metadata.image) {
+                    let imageHash = metadata.image;
+                    if (imageHash.startsWith('ipfs://')) {
+                        imageHash = imageHash.replace('ipfs://', '');
+                    }
+                    imageUrl = `${gatewayUrl}/ipfs/${imageHash}`;
+                    console.log("ForestAPI: Image URL:", imageUrl);
+                }
+            } else {
+                console.log("ForestAPI: Failed to fetch metadata, status:", metadataResponse.status);
+            }
+        }
+
+        return {
+            tokenId: forest.latestTokenId,
+            forestId: forest.forestId,
+            metadataUri: forest.latestMetadataUri,
+            metadata: metadata,
+            imageUrl: imageUrl,
+            // Contract fields that we can get from the forest data
+            owner: forest.owner,
+            area: forest.area,
+            lastNDVI: forest.lastNDVI,
+            lastConfidence: forest.lastConfidence,
+            lastVerificationDate: forest.lastVerificationDate,
+            totalCarbonCredits: forest.totalCarbonCredits,
+            txHash: forest.txHash,
+            isActive: forest.isActive
+        };
+    } catch (error) {
+        console.log("ForestAPI: Error fetching NFT data:", error);
+        throw error;
+    }
+};
+
 export const getForests = async () => {
     console.log("Getting forests");
     try {

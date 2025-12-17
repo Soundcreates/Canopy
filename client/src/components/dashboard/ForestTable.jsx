@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MagicCard } from './MagicBento';
 import { getForests } from '../../ApiFactory/ForestAPI';
+import { useSelectedForest } from '../../contexts/SelectedForestContext';
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -20,6 +21,7 @@ const StatusBadge = ({ status }) => {
 };
 
 const ForestTable = () => {
+    const { selectedForest, setSelectedForest } = useSelectedForest();
     const [forests, setForests] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -142,6 +144,32 @@ const ForestTable = () => {
                     console.log("ForestTable: Setting forests state with", transformedForests.length, "items");
                     setForests(transformedForests);
                     console.log("ForestTable: State set successfully");
+                    
+                    // Set the latest forest as default selected (most recent by forestId or createdAt)
+                    if (transformedForests.length > 0 && transformedForests[0].original) {
+                        const latestForest = transformedForests.reduce((latest, current) => {
+                            if (!current.original) return latest;
+                            if (!latest.original) return current;
+                            
+                            // Compare by createdAt if available, otherwise by forestId
+                            const latestDate = latest.original.createdAt ? new Date(latest.original.createdAt) : null;
+                            const currentDate = current.original.createdAt ? new Date(current.original.createdAt) : null;
+                            
+                            if (latestDate && currentDate) {
+                                return currentDate > latestDate ? current : latest;
+                            }
+                            
+                            // Fallback to forestId
+                            const latestId = parseInt(latest.original.forestId || 0);
+                            const currentId = parseInt(current.original.forestId || 0);
+                            return currentId > latestId ? current : latest;
+                        });
+                        
+                        if (latestForest.original) {
+                            console.log("ForestTable: Setting default selected forest:", latestForest.original.forestId);
+                            setSelectedForest(latestForest.original);
+                        }
+                    }
                 } else {
                     console.warn("ForestTable: No forests found in response");
                     console.log("ForestTable: Response structure:", JSON.stringify(response, null, 2));
@@ -180,6 +208,7 @@ const ForestTable = () => {
             enableStars={false}
             className="!p-0 !bg-[#11141a]/80 !h-fit"
             enableTilt={false}
+            setHeight = {200} // 200 px
         >
             <div className="px-5 py-4 border-b border-white/5 flex justify-between items-center relative z-10">
                 <h3 className="text-sm font-medium text-white">Forest Registry</h3>
@@ -188,7 +217,7 @@ const ForestTable = () => {
                 </button>
             </div>
 
-            <div className="overflow-x-auto relative z-10 scrollbar-hide"> {/* This is the table container */}
+            <div className="overflow-x-auto relative z-10 min-h-[200px]  scrollbar-hide"> {/* This is the table container */}
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-white/[0.02] text-xs font-mono text-gray-500 uppercase">
@@ -232,7 +261,15 @@ const ForestTable = () => {
                                     initial={{ opacity: 0, x: -10 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: i * 0.05 }}
-                                    className="hover:bg-white/[0.02] transition-colors cursor-pointer group"
+                                    onClick={() => {
+                                        console.log("ForestTable: Forest clicked:", forest);
+                                        if (forest.original) {
+                                            setSelectedForest(forest.original);
+                                        }
+                                    }}
+                                    className={`hover:bg-white/[0.02] transition-colors cursor-pointer group ${
+                                        selectedForest?.forestId === forest.original?.forestId ? 'bg-emerald-500/10 border-l-2 border-emerald-500' : ''
+                                    }`}
                                 >
                                     <td className="px-5 py-3 font-mono text-gray-300 group-hover:text-emerald-400 transition-colors">{forest.id || 'N/A'}</td>
                                     <td className="px-5 py-3 text-gray-400">{typeof forest.area === 'number' ? forest.area.toLocaleString() : String(forest.area || '0')}</td>

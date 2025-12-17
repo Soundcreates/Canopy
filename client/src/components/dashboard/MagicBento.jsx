@@ -513,12 +513,13 @@ export const MagicCard = ({
     glowColor = DEFAULT_GLOW_COLOR,
     enableTilt = false,
     clickEffect = true,
-    enableMagnetism = true
+    enableMagnetism = true,
+    setHeight  =  "full"  //default is full height
 }) => {
     const isMobile = useMobileDetection();
     const shouldDisableAnimations = disableAnimations || isMobile;
 
-    const baseClassName = `card flex flex-col relative w-full h-full p-5 rounded-[20px] border border-solid border-white/5 bg-[#11141a]/95 backdrop-blur-sm overflow-hidden transition-all duration-300 ease-in-out hover:-translate-y-0.5 hover:shadow-[0_8px_25px_rgba(0,0,0,0.15)] ${enableBorderGlow ? 'card--border-glow' : ''
+    const baseClassName = `card flex flex-col relative w-full min-h-[${setHeight}px] p-5 rounded-[20px] border border-solid border-white/5 bg-[#11141a]/95 backdrop-blur-sm overflow-hidden transition-all duration-300 ease-in-out hover:-translate-y-0.5 hover:shadow-[0_8px_25px_rgba(0,0,0,0.15)] ${enableBorderGlow ? 'card--border-glow' : ''
         } ${className}`;
 
     if (enableStars) {

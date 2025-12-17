@@ -121,7 +121,7 @@ const VerificationTimeline = () => {
         <MagicCard
             enableStars={false}
             enableTilt={false}
-            className="!bg-[#11141a]/80"
+            className="!bg-[#11141a]/80 " 
         >
             <h3 className="text-sm font-medium text-white mb-6 relative z-10">Verification Epochs</h3>
 
