@@ -8,6 +8,9 @@ const { classifyAOI } = require('../utils/BhuvanService');
 async function getNDVI(req, res) {
     console.log("=== NDVI Pipeline Started ===");
     try {
+        // Get Python backend URL from environment variable
+        const pythonUrl = process.env.PYTHON_URL || process.env.python_url || 'http://localhost:8000';
+        
         // Step 1: Extract and validate request parameters
         console.log("Step 1: Extracting request body parameters");
         const { 
@@ -120,13 +123,14 @@ async function getNDVI(req, res) {
 
         // Step 2: Fetch satellite data and compute NDVI
         console.log("Step 2: Computing NDVI from satellite data");
-        console.log("Sending POST request to http://localhost:8000/ndvi");
+        const ndviEndpoint = `${pythonUrl}/ndvi`;
+        console.log(`Sending POST request to ${ndviEndpoint}`);
         const ndviController = new AbortController();
         const ndviTimeout = setTimeout(() => ndviController.abort(), 300000); // 5 minutes timeout
         
         let ndviResponse;
         try {
-            ndviResponse = await fetch("http://localhost:8000/ndvi", {
+            ndviResponse = await fetch(ndviEndpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ forest_id, min_lon, max_lon, min_lat, max_lat }),
@@ -225,13 +229,14 @@ async function getNDVI(req, res) {
         };
 
         console.log("Graph request payload:", graphRequest);
-        console.log("Sending POST request to http://localhost:8000/generate-nft-graph");
+        const graphEndpoint = `${pythonUrl}/generate-nft-graph`;
+        console.log(`Sending POST request to ${graphEndpoint}`);
         const imageController = new AbortController();
         const imageTimeout = setTimeout(() => imageController.abort(), 60000); // 1 minute timeout
         
         let imageResponse;
         try {
-            imageResponse = await fetch("http://localhost:8000/generate-nft-graph", {
+            imageResponse = await fetch(graphEndpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(graphRequest),
