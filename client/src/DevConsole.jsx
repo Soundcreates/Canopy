@@ -1,19 +1,6 @@
-/**
- * DEV / HACKATHON TEST PAGE — NOT FOR PRODUCTION
- * 
- * This is a developer-only console for testing wallet signature authentication
- * and protected backend routes during development.
- * 
- * Features:
- * - MetaMask wallet connection
- * - Message signing with ethers.js v6
- * - Backend API testing (POST /auth/verify, POST /forests)
- * - Request/response logging
- */
-
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { getApiBaseUrl } from '../utils/apiConfig';
+import { getApiBaseUrl } from './utils/apiConfig';
 
 // Backend API base URL - uses environment-based configuration
 const baseUrl = getApiBaseUrl();
