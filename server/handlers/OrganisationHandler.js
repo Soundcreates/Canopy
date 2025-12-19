@@ -1,7 +1,7 @@
 const { OrganisationModel, OrganisationMemberModel } = require('../models/OrganisationModel');
 const { UsersModel } = require('../models/UserModel');
 const { db } = require('../config/db');
-const { eq, and } = require('drizzle-orm');
+const { eq, and, isNull } = require('drizzle-orm');
 
 /**
  * Create a new organization
@@ -540,6 +540,90 @@ async function deleteOrganisation(req, res) {
     }
 }
 
+/**
+ * Get all organizations for marketplace (public endpoint)
+ * Returns all active organizations with member counts and progress
+ */
+async function getMarketplaceOrganisations(req, res) {
+    console.log("Getting marketplace organisations");
+    try {
+        // Get all active organizations
+        const organisations = await db.select({
+            id: OrganisationModel.id,
+            name: OrganisationModel.name,
+            description: OrganisationModel.description,
+            startDate: OrganisationModel.startDate,
+            endDate: OrganisationModel.endDate,
+            image: OrganisationModel.image,
+            owner: OrganisationModel.owner,
+            isActive: OrganisationModel.isActive,
+            createdAt: OrganisationModel.createdAt,
+        })
+        .from(OrganisationModel)
+        .where(eq(OrganisationModel.isActive, true));
+
+        // Get member counts for each organization
+        const organisationsWithMembers = await Promise.all(
+            organisations.map(async (org) => {
+                // Count active members (where leftDate is null)
+                const members = await db.select()
+                    .from(OrganisationMemberModel)
+                    .where(
+                        and(
+                            eq(OrganisationMemberModel.organisationId, org.id),
+                            isNull(OrganisationMemberModel.leftDate)
+                        )
+                    );
+
+                const memberCount = members.length;
+
+                // Calculate progress based on dates
+                const now = new Date();
+                const startDate = new Date(org.startDate);
+                const endDate = new Date(org.endDate);
+                const totalDuration = endDate - startDate;
+                const elapsed = now - startDate;
+                
+                let progress = 0;
+                if (totalDuration > 0) {
+                    progress = Math.min(100, Math.max(0, Math.round((elapsed / totalDuration) * 100)));
+                }
+
+                // Format dates for display
+                const formatDate = (date) => {
+                    return new Date(date).toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: '2-digit', 
+                        day: '2-digit' 
+                    });
+                };
+
+                return {
+                    id: org.id,
+                    name: org.name,
+                    description: org.description,
+                    members: memberCount,
+                    progress: progress,
+                    startDate: formatDate(org.startDate),
+                    endDate: formatDate(org.endDate),
+                    image: org.image,
+                    owner: org.owner,
+                    createdAt: org.createdAt
+                };
+            })
+        );
+
+        console.log("Marketplace organisations retrieved:", organisationsWithMembers.length);
+        return res.status(200).json({ organisations: organisationsWithMembers });
+    } catch (error) {
+        console.error("Error getting marketplace organisations:", error);
+        return res.status(500).json({
+            error: 'Failed to get marketplace organisations',
+            details: error.message
+        });
+    }
+}
+
 module.exports = {
     createOrganisation,
     getOrganisations,
@@ -547,6 +631,7 @@ module.exports = {
     updateOrganisation,
     addMembers,
     removeMember,
-    deleteOrganisation
+    deleteOrganisation,
+    getMarketplaceOrganisations
 };
 

@@ -254,6 +254,33 @@ export const OrganisationProvider = ({ children }) => {
     }
   };
 
+  // Get marketplace organisations (public, no auth required)
+  const getMarketplaceOrganisations = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/organisations/marketplace`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data.message || `HTTP ${response.status}: Request failed`);
+      }
+      return data;
+    } catch (err) {
+      const errorMessage = err.message || 'Failed to fetch marketplace organisations';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const value = {
     createOrganisation,
     getOrganisations,
@@ -262,6 +289,7 @@ export const OrganisationProvider = ({ children }) => {
     addMembers,
     removeMember,
     deleteOrganisation,
+    getMarketplaceOrganisations,
     isLoading,
     error,
   };

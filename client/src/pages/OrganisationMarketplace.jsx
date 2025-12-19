@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopNav from '../components/dashboard/TopNav';
 import { MagicCard } from '../components/dashboard/MagicBento';
 import { motion } from 'framer-motion';
+import { useOrganisation } from '../contexts/OrganisationContext';
+import { useWallet } from '../contexts/WalletContext';
+import { toast } from 'react-toastify';
 
-const OrgCard = ({ org }) => (
+const OrgCard = ({ org, isOwnerOrMember }) => (
     <MagicCard className="!p-0 !bg-[#11141a] border border-white/10 group h-full flex flex-col">
         {/* Banner / Header */}
         <div className="h-32 bg-gradient-to-br from-emerald-900/20 to-black relative overflow-hidden border-b border-white/5">
@@ -44,13 +47,17 @@ const OrgCard = ({ org }) => (
             </div>
 
             {/* Actions */}
-            <div className="grid grid-cols-3 gap-2 mt-auto">
-                <button className="py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 rounded text-xs font-mono font-medium transition-colors">
-                    INVEST
-                </button>
-                <button className="py-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded text-xs font-mono font-medium transition-colors">
-                    BUY
-                </button>
+            <div className={`grid gap-2 mt-auto ${isOwnerOrMember ? 'grid-cols-1' : 'grid-cols-3'}`}>
+                {!isOwnerOrMember && (
+                    <>
+                        <button className="py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 rounded text-xs font-mono font-medium transition-colors">
+                            INVEST
+                        </button>
+                        <button className="py-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded text-xs font-mono font-medium transition-colors">
+                            BUY
+                        </button>
+                    </>
+                )}
                 <button className="py-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border border-white/10 rounded text-xs font-mono font-medium transition-colors">
                     DATA
                 </button>
@@ -61,55 +68,54 @@ const OrgCard = ({ org }) => (
 
 const OrganisationMarketplace = () => {
     const navigate = useNavigate();
+    const { getMarketplaceOrganisations, getOrganisations } = useOrganisation();
+    const { account } = useWallet();
+    const [organizations, setOrganizations] = useState([]);
+    const [userOrganisations, setUserOrganisations] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    // Mock Data
-    const organizations = [
-        {
-            id: 1,
-            name: "Green Earth Alliance",
-            description: "Collaborative effort to reforest the Amazon basin using decentralized verification protocols. Focusing on high-impact zones.",
-            members: 124,
-            progress: 65,
-            startDate: "2024-01-01",
-            endDate: "2025-12-31"
-        },
-        {
-            id: 2,
-            name: "Oceanic Carbon DAO",
-            description: "Restoring mangrove forests in Southeast Asia. Mangroves sequester 4x more carbon than rainforests. Join us in protecting the coastlines.",
-            members: 89,
-            progress: 32,
-            startDate: "2024-03-15",
-            endDate: "2026-03-15"
-        },
-        {
-            id: 3,
-            name: "Highland Reforest Initiative",
-            description: "Replanting native trees in the Scottish Highlands to restore biodiversity and create natural carbon sinks.",
-            members: 45,
-            progress: 12,
-            startDate: "2024-06-01",
-            endDate: "2029-01-01"
-        },
-        {
-            id: 4,
-            name: "Urban Canopy Project",
-            description: "Increasing green cover in major metropolitan areas to reduce heat islands and improve air quality.",
-            members: 210,
-            progress: 88,
-            startDate: "2023-11-20",
-            endDate: "2025-05-20"
-        },
-        {
-            id: 5,
-            name: "Savanna Guardians",
-            description: "Protecting African savannas from desertification through community-led sustainable land management.",
-            members: 56,
-            progress: 45,
-            startDate: "2024-02-10",
-            endDate: "2025-08-30"
+    useEffect(() => {
+        loadOrganisations();
+    }, [account]);
+
+    const loadOrganisations = async () => {
+        setLoading(true);
+        try {
+            // Load marketplace organizations
+            const marketplaceData = await getMarketplaceOrganisations();
+            const marketplaceOrgs = marketplaceData.organisations || [];
+            
+            // Load user's organizations if wallet is connected
+            let userOrgIds = [];
+            if (account) {
+                try {
+                    const userData = await getOrganisations();
+                    userOrgIds = (userData.organisations || []).map(org => org.id);
+                } catch (error) {
+                    console.log('User not authenticated or no organizations:', error.message);
+                }
+            }
+
+            // Mark organizations where user is owner or member
+            const orgsWithOwnership = marketplaceOrgs.map(org => {
+                const isOwner = account && org.owner && org.owner.toLowerCase() === account.toLowerCase();
+                const isMember = userOrgIds.includes(org.id);
+                return {
+                    ...org,
+                    isOwnerOrMember: isOwner || isMember
+                };
+            });
+
+            setOrganizations(orgsWithOwnership);
+            setUserOrganisations(userOrgIds);
+        } catch (error) {
+            console.error('Error loading organisations:', error);
+            toast.error('Failed to load organizations: ' + error.message);
+            setOrganizations([]);
+        } finally {
+            setLoading(false);
         }
-    ];
+    };
 
     return (
         <div className="h-screen w-full bg-[#0b0f14] text-gray-300 font-sans selection:bg-emerald-500/30 flex flex-col overflow-hidden">
@@ -151,18 +157,34 @@ const OrganisationMarketplace = () => {
                     </div>
 
                     {/* Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20">
-                        {organizations.map((org, index) => (
-                            <motion.div
-                                key={org.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.1 }}
+                    {loading ? (
+                        <div className="flex items-center justify-center py-20">
+                            <div className="text-gray-500 font-mono">Loading organizations...</div>
+                        </div>
+                    ) : organizations.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20">
+                            <p className="text-gray-500 font-mono mb-4">No organizations found</p>
+                            <button
+                                onClick={() => navigate('/create-organisation')}
+                                className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-medium rounded-lg transition-colors font-mono tracking-wide"
                             >
-                                <OrgCard org={org} />
-                            </motion.div>
-                        ))}
-                    </div>
+                                CREATE FIRST ORGANIZATION
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20">
+                            {organizations.map((org, index) => (
+                                <motion.div
+                                    key={org.id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: index * 0.1 }}
+                                >
+                                    <OrgCard org={org} isOwnerOrMember={org.isOwnerOrMember || false} />
+                                </motion.div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

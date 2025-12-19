@@ -106,7 +106,7 @@ const OrganisationPage = () => {
                                 </div>
                                 <div className="flex gap-3">
                                     <button
-                                        onClick={() => navigate('/create-organisation')}
+                                        onClick={() => navigate('/create-org')}
                                         className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-mono font-medium rounded border border-emerald-500/20 transition-colors flex items-center gap-2 tracking-wide"
                                     >
                                         + CREATE ORGANIZATION

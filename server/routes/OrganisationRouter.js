@@ -9,11 +9,15 @@ const {
     updateOrganisation,
     addMembers,
     removeMember,
-    deleteOrganisation
+    deleteOrganisation,
+    getMarketplaceOrganisations
 } = require("../handlers/OrganisationHandler");
 
 // Create a new organisation - REQUIRES SIGNATURE
 router.post("/create", requireWalletAuth, createOrganisation);
+
+// Get marketplace organisations (public, all active orgs) - NO AUTH REQUIRED
+router.get("/marketplace", getMarketplaceOrganisations);
 
 // Get all organisations for the authenticated user - NO SIGNATURE REQUIRED
 router.get("/", optionalWalletAuth, getOrganisations);
