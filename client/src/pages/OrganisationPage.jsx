@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopNav from '../components/dashboard/TopNav';
 import OrgKPIGrid from '../components/dashboard/OrgKPIGrid';
@@ -9,60 +9,83 @@ import AddMemberModal from '../components/dashboard/AddMemberModal';
 import { toast } from 'react-toastify';
 import { useOrganisation } from '../contexts/OrganisationContext';
 import { useWallet } from '../contexts/WalletContext';
+import { getOrganisations } from '../ApiFactory/OrganisationAPI';
+import { showToast } from '../utils/toast';
+import { fetchOrganisationById } from '../ApiFactory/OrganisationAPI';
+
 
 const OrganisationPage = () => {
     const navigate = useNavigate();
-    const { getOrganisations, getOrganisationById, isLoading } = useOrganisation();
+    const { isLoading } = useOrganisation();
     const { isConnected, connectWallet } = useWallet();
     const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
     const [organisations, setOrganisations] = useState([]);
     const [selectedOrganisation, setSelectedOrganisation] = useState(null);
     const [loadingOrgs, setLoadingOrgs] = useState(false);
+    const { account } = useWallet();
+
+    const loadOrganisationDetails = useCallback(async (id) => {
+        try {
+            const orgDetails = await fetchOrganisationById(account, id);
+            // Handle response structure
+            if (orgDetails.organisation) {
+                setSelectedOrganisation(orgDetails);
+            } else {
+                setSelectedOrganisation({
+                    organisation: orgDetails,
+                    members: []
+                });
+            }
+        } catch (err) {
+            console.error("Error loading organisation details:", err);
+            // Don't show error toast for connection errors
+            if (err.message && !err.message.includes('Failed to fetch')) {
+                showToast.error("Failed to load organization details");
+            }
+        }
+    }, [account]);
 
     useEffect(() => {
-        if (isConnected) {
-            loadOrganisations();
+        if (!account) {
+            setOrganisations([]);
+            setSelectedOrganisation(null);
+            return;
         }
-    }, [isConnected]);
 
-    const loadOrganisations = async () => {
-        if (!isConnected) {
+        const fetchOrgs = async () => {
+            setLoadingOrgs(true);
             try {
-                await connectWallet();
+                const response = await getOrganisations(account);
+                const orgs = response.organisations || [];
+                setOrganisations(orgs);
+                
+                // If we have organizations, load details for the first one
+                if (orgs.length > 0) {
+                    await loadOrganisationDetails(orgs[0].id);
+                } else {
+                    setSelectedOrganisation(null);
+                }
+                
+                if (orgs.length > 0) {
+                    showToast.success("Organisations loaded successfully");
+                }
             } catch (err) {
-                toast.error('Please connect your wallet to view organizations');
-                return;
+                console.error("Error loading organisations from page:", err);
+                setOrganisations([]);
+                setSelectedOrganisation(null);
+                // Only show error if it's not a connection error
+                if (err.message && !err.message.includes('Failed to fetch')) {
+                    showToast.error("Error loading organisations", err.message || err);
+                }
+            } finally {
+                setLoadingOrgs(false);
             }
-        }
+        };
+        
+        fetchOrgs();
+    }, [account, loadOrganisationDetails]);
 
-        setLoadingOrgs(true);
-        try {
-            const data = await getOrganisations();
-            setOrganisations(data.organisations || []);
-            
-            // If there are organizations and none selected, select the first one
-            if (data.organisations && data.organisations.length > 0 && !selectedOrganisation) {
-                loadOrganisationDetails(data.organisations[0].id);
-            }
-        } catch (error) {
-            console.error('Error loading organisations:', error);
-            toast.error('Failed to load organizations: ' + error.message);
-        } finally {
-            setLoadingOrgs(false);
-        }
-    };
-
-    const loadOrganisationDetails = async (id) => {
-        try {
-            const data = await getOrganisationById(id);
-            setSelectedOrganisation(data);
-        } catch (error) {
-            console.error('Error loading organisation details:', error);
-            toast.error('Failed to load organization details: ' + error.message);
-        }
-    };
-
-    const handleAddMember = () => {
+   const handleAddMember = () => {
         if (!selectedOrganisation) {
             toast.error('Please select an organization first');
             return;
@@ -111,6 +134,12 @@ const OrganisationPage = () => {
                                     >
                                         + CREATE ORGANIZATION
                                     </button>
+                                    <button
+                                        onClick={() => navigate(`/org/register/${selectedOrganisation?.organisation.id}`)}
+                                        className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-mono font-medium rounded border border-emerald-500/20 transition-colors flex items-center gap-2 tracking-wide"
+                                    >
+                                        + REGISTER FOREST
+                                    </button>
                                     {selectedOrganisation && (
                                         <>
                                             <button
@@ -125,13 +154,7 @@ const OrganisationPage = () => {
                                             >
                                                 + ADD MEMBER
                                             </button>
-                                            <button
-                                                onClick={() => navigate('/register')}
-                                                className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-mono font-medium rounded border border-emerald-500/20 transition-colors flex items-center gap-2 tracking-wide"
-                                            >
-                                                + REGISTER FOREST
-                                            </button>
-                                        </>
+                                       </>
                                     )}
                                 </div>
                             </div>
@@ -145,11 +168,10 @@ const OrganisationPage = () => {
                                             <button
                                                 key={org.id}
                                                 onClick={() => loadOrganisationDetails(org.id)}
-                                                className={`text-left p-3 rounded border transition-colors ${
-                                                    selectedOrganisation?.organisation.id === org.id
+                                                className={`text-left p-3 rounded border transition-colors ${selectedOrganisation?.organisation.id === org.id
                                                         ? 'bg-emerald-500/10 border-emerald-500/30 text-white'
                                                         : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
-                                                }`}
+                                                    }`}
                                             >
                                                 <div className="font-medium">{org.name}</div>
                                                 <div className="text-xs text-gray-500 font-mono mt-1">
@@ -177,7 +199,7 @@ const OrganisationPage = () => {
                                 <div className="flex flex-col items-center justify-center p-12 bg-[#11141a]/90 border border-white/10 rounded-lg">
                                     <p className="text-gray-500 font-mono mb-4">No organizations found</p>
                                     <button
-                                        onClick={() => navigate('/create-organisation')}
+                                        onClick={() => navigate('/create-org')}
                                         className="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-medium rounded-lg transition-colors font-mono tracking-wide"
                                     >
                                         CREATE YOUR FIRST ORGANIZATION

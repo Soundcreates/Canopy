@@ -163,16 +163,14 @@ async function getOrganisations(req, res) {
 
 /**
  * Get a specific organization by ID
+ * If userAddress is provided, checks membership and returns member details
+ * If not provided, returns public organization info only
  */
 async function getOrganisationById(req, res) {
     console.log("Getting organisation by ID");
     try {
         const { id } = req.params;
         const userAddress = req.walletAddress || req.query.address;
-
-        if (!userAddress) {
-            return res.status(400).json({ error: 'Wallet address is required' });
-        }
 
         // Get organization
         const organisation = await db.select()
@@ -184,32 +182,45 @@ async function getOrganisationById(req, res) {
             return res.status(404).json({ error: 'Organisation not found' });
         }
 
-        // Check if user is a member
-        const member = await db.select()
-            .from(OrganisationMemberModel)
-            .where(and(
-                eq(OrganisationMemberModel.organisationId, parseInt(id)),
-                eq(OrganisationMemberModel.userAddress, userAddress.toLowerCase())
-            ))
-            .limit(1);
+        // If user address is provided, check membership and get member details
+        if (userAddress) {
+            // Check if user is a member
+            const member = await db.select()
+                .from(OrganisationMemberModel)
+                .where(and(
+                    eq(OrganisationMemberModel.organisationId, parseInt(id)),
+                    eq(OrganisationMemberModel.userAddress, userAddress.toLowerCase()),
+                    isNull(OrganisationMemberModel.leftDate)
+                ))
+                .limit(1);
 
-        if (member.length === 0) {
-            return res.status(403).json({ error: 'You are not a member of this organisation' });
+            // Get all active members (only if user is a member)
+            if (member.length > 0) {
+                const members = await db.select({
+                    userAddress: OrganisationMemberModel.userAddress,
+                    role: OrganisationMemberModel.role,
+                    joinedAt: OrganisationMemberModel.joinedAt,
+                    leftDate: OrganisationMemberModel.leftDate
+                })
+                .from(OrganisationMemberModel)
+                .where(and(
+                    eq(OrganisationMemberModel.organisationId, parseInt(id)),
+                    isNull(OrganisationMemberModel.leftDate)
+                ));
+
+                return res.status(200).json({
+                    organisation: organisation[0],
+                    members,
+                    isMember: true
+                });
+            }
         }
 
-        // Get all members
-        const members = await db.select({
-            userAddress: OrganisationMemberModel.userAddress,
-            role: OrganisationMemberModel.role,
-            joinedAt: OrganisationMemberModel.joinedAt,
-            leftDate: OrganisationMemberModel.leftDate
-        })
-        .from(OrganisationMemberModel)
-        .where(eq(OrganisationMemberModel.organisationId, parseInt(id)));
-
+        // Return public organization info (without member details)
         return res.status(200).json({
             organisation: organisation[0],
-            members
+            members: [],
+            isMember: false
         });
     } catch (error) {
         console.error("Error getting organisation by ID:", error);
