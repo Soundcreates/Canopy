@@ -15,7 +15,7 @@ import { showToast } from '../utils/toast';
 
 //if you need to run the mapbox map, u need to have a mapbox account which provides a public access token
 //mapbox is free for limited usage , just need to signup using a card
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN?.trim()  ;
+mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN?.trim();
 // --- Components ---
 
 const IconWallet = ({ className }) => (
@@ -49,7 +49,7 @@ const ForestRegister = () => {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const drawRef = useRef(null);
-  
+
   // State for plot data
   const [plotData, setPlotData] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -84,10 +84,10 @@ const ForestRegister = () => {
 
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
-    if(!import.meta.env.VITE_MAPBOX_TOKEN){
+    if (!import.meta.env.VITE_MAPBOX_TOKEN) {
       console.error('Mapbox access token is not set in env');
       return;
-    }else{
+    } else {
       console.log('Mapbox access token is set in env: ', import.meta.env.VITE_MAPBOX_TOKEN);
     }
     // Ensure access token is set
@@ -96,20 +96,31 @@ const ForestRegister = () => {
       return;
     }
 
-    // Initialize map
-    mapRef.current = new mapboxgl.Map({
-      container: mapContainerRef.current,
-      style: 'mapbox://styles/mapbox/dark-v11',
-      center: [-62.2159, -3.4653],
-      zoom: 3.5,
-      pitch: 45,
-      bearing: -17,
-      antialias: true,
-    });
+    // Initialize map - only if token exists
+    if (mapboxgl.accessToken) {
+      if (!mapContainerRef.current) return;
+
+      try {
+        mapRef.current = new mapboxgl.Map({
+          container: mapContainerRef.current,
+          style: 'mapbox://styles/mapbox/dark-v11',
+          center: [-62.2159, -3.4653],
+          zoom: 3.5,
+          pitch: 45,
+          bearing: -17,
+          antialias: true,
+        });
+      } catch (error) {
+        console.error("Error initializing Mapbox:", error);
+        return;
+      }
+    } else {
+      return; // Don't try to initialize if no token
+    }
 
     // Add navigation controls
     mapRef.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-    
+
     // Add geolocate control
     mapRef.current.addControl(new mapboxgl.GeolocateControl({
       positionOptions: {
@@ -235,12 +246,12 @@ const ForestRegister = () => {
         mapRef.current.off('draw.update');
         mapRef.current.off('draw.delete');
         mapRef.current.off('draw.modechange');
-        
+
         mapRef.current.remove();
         mapRef.current = null;
         drawRef.current = null;
       }
-      
+
       // Stop monitoring if component unmounts
       if (monitoringStopRef.current) {
         monitoringStopRef.current();
@@ -257,21 +268,21 @@ const ForestRegister = () => {
     try {
       // Get all features from draw
       const features = draw.getAll();
-      
+
       if (features.features.length === 0) {
         return;
       }
 
       // Get the first (and should be only) polygon feature
       const polygonFeature = features.features[0];
-      
+
       if (!polygonFeature || polygonFeature.geometry.type !== 'Polygon') {
         return;
       }
 
       // Extract coordinates from polygon
       const coordinates = polygonFeature.geometry.coordinates[0];
-      
+
       // Calculate bounding box to create a perfect square
       let minLng = coordinates[0][0];
       let maxLng = coordinates[0][0];
@@ -348,17 +359,17 @@ const ForestRegister = () => {
         geojson: squareFeature,
         areaSqMeters,
         centroid,
-        
+
         // Backend-required fields for registerForest
         area: areaSqMeters, // Area in square meters (as required by backend)
         geoHash: geoHash, // String representation of bounding box
-        
+
         // Backend-required fields for getNDVI
         min_lon: finalMinLng,
         max_lon: finalMaxLng,
         min_lat: finalMinLat,
         max_lat: finalMaxLat,
-        
+
         // Additional computed fields that might be useful
         areaHectares: areaSqMeters / 10000, // Convert to hectares (used in NDVI handler)
       });
@@ -374,7 +385,7 @@ const ForestRegister = () => {
     if (!drawRef.current || !mapRef.current) return;
 
     const currentMode = drawRef.current.getMode();
-    
+
     if (currentMode === 'draw_polygon') {
       // Switch to simple_select mode (stop drawing)
       drawRef.current.changeMode('simple_select');
@@ -427,7 +438,7 @@ const ForestRegister = () => {
       // ForestHandler.registerForest expects: { area, geoHash }
       // Note: Smart contract expects integer area (whole square meters), not decimal
       const areaInteger = Math.floor(plotData.area); // Convert to integer (floor to avoid rounding up)
-      
+
       const registrationPayload = {
         area: areaInteger, // Area in square meters as integer (required by smart contract)
         geoHash: plotData.geoHash, // String representation: "minLng,maxLng,minLat,maxLat"
@@ -455,20 +466,20 @@ const ForestRegister = () => {
         centroid: plotData.centroid,
         geojson: plotData.geojson,
       });
-      
+
       // Call registerForest API with backend-required format
       // Note: area must be an integer for smart contract compatibility
       const response = await registerForest(
-        areaInteger, 
-        plotData.geoHash, 
+        areaInteger,
+        plotData.geoHash,
         account
       );
-      
+
       console.log('Forest registration successful:', response);
-      
+
       // Extract forest ID from response
       const forestId = response.forest?.[0]?.forestId || response.forest?.forestId;
-      
+
       if (!forestId) {
         console.error('Forest ID not found in response:', response);
         showToast.error('Forest registration succeeded but forest ID not found in response');
@@ -477,7 +488,7 @@ const ForestRegister = () => {
 
       console.log('Forest ID received:', forestId);
       showToast.info(`Forest registered! Starting NDVI computation...`);
-      
+
       // Immediately call NDVI endpoint after registration
       console.log('Calling NDVI endpoint immediately after registration');
       try {
@@ -522,7 +533,7 @@ const ForestRegister = () => {
 
       // Store the stop function (in case we need to stop it later)
       monitoringStopRef.current = stopMonitoring;
-      
+
       // Store monitoring info in localStorage so it persists across page reloads
       const monitoringKey = `ndvi_monitoring_${forestId}`;
       localStorage.setItem(monitoringKey, JSON.stringify({
@@ -534,20 +545,20 @@ const ForestRegister = () => {
         area_hectares: plotData.areaHectares,
         startedAt: new Date().toISOString()
       }));
-      
+
       // Clear the form and plot
       setPlotData(null);
-      
+
       // Navigate to dashboard
       showToast.success('Registration complete! Redirecting to dashboard...');
       setTimeout(() => {
         navigate('/dashboard');
       }, 1500);
-      
+
     } catch (error) {
       console.error('Error submitting forest registration:', error);
       setIsSubmitting(false);
-      
+
       // Toast notification already shown by registerForest function
       // Just log here for debugging
     } finally {
@@ -650,7 +661,31 @@ const ForestRegister = () => {
 
           {/* Map Container */}
           <div className="relative aspect-[16/9] w-full bg-[#0b0f14] border border-white/10 rounded-sm overflow-hidden shadow-2xl group">
-            <div ref={mapContainerRef} className="w-full h-full" />
+            {mapboxgl.accessToken ? (
+              <div ref={mapContainerRef} className="w-full h-full" />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center bg-[#05080c] relative overflow-hidden">
+                {/* Fallback Grid Background */}
+                <div className="absolute inset-0 opacity-20 pointer-events-none">
+                  <Squares direction="diagonal" speed={0.2} squareSize={40} borderColor="#ef4444" hoverFillColor="#ef4444" />
+                </div>
+
+                <div className="z-10 text-center p-8 max-w-md border border-red-500/30 bg-red-500/5 rounded backdrop-blur-sm">
+                  <div className="text-red-500 mb-4 flex justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-mono text-red-500 mb-2 uppercase tracking-wide">Mapbox Token Missing</h3>
+                  <p className="text-gray-400 text-sm font-light">
+                    The Mapbox public access token is not available in the production environment.
+                    Please configure <code className="bg-white/10 px-1 py-0.5 rounded text-white">VITE_MAPBOX_TOKEN</code> in your environment variables to enable the satellite interface.
+                  </p>
+                </div>
+              </div>
+            )}
             {/* Map overlay elements */}
             <div className="absolute top-4 left-10 bg-black/50 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-sm z-10">
               <span className="text-[10px] font-mono text-emerald-500 flex items-center gap-2">
@@ -658,16 +693,15 @@ const ForestRegister = () => {
                 LIVE SATELLITE FEED
               </span>
             </div>
-            
+
             {/* Draw Plot Controls */}
             <div className="absolute top-4 right-4 flex flex-col gap-2 z-10">
               <button
                 onClick={toggleDrawing}
-                className={`px-4 py-2 text-xs font-mono uppercase tracking-wider rounded-sm backdrop-blur-md border transition-all ${
-                  isDrawing
+                className={`px-4 py-2 text-xs font-mono uppercase tracking-wider rounded-sm backdrop-blur-md border transition-all ${isDrawing
                     ? 'bg-emerald-600/30 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600/40'
                     : 'bg-black/50 border-white/10 text-gray-300 hover:border-emerald-500/30 hover:text-emerald-400'
-                }`}
+                  }`}
               >
                 {isDrawing ? 'Stop Drawing' : 'Draw Plot'}
               </button>
@@ -756,11 +790,10 @@ const ForestRegister = () => {
               <button
                 onClick={handleSubmit}
                 disabled={!plotData || !account || isSubmitting}
-                className={`w-full py-3 text-xs font-mono uppercase tracking-wider rounded-sm transition-all ${
-                  plotData && account && !isSubmitting
+                className={`w-full py-3 text-xs font-mono uppercase tracking-wider rounded-sm transition-all ${plotData && account && !isSubmitting
                     ? 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-500 hover:text-emerald-400 border border-emerald-500/50 hover:border-emerald-400'
                     : 'bg-gray-800/20 text-gray-600 border border-gray-700/30 cursor-not-allowed'
-                }`}
+                  }`}
               >
                 {isSubmitting ? 'Registering...' : 'Initialize Registration'}
               </button>

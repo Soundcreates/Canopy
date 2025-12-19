@@ -21,7 +21,23 @@ runPendingMigrations().then(() => {
     // This allows the server to run if columns already exist
 });
 
-const allowedOrigins = ["http://localhost:5173", "https://canopy-ai.vercel.app"];
+// Get frontend URL based on MODE environment variable
+const MODE = process.env.MODE || 'development';
+const frontendURL = MODE === 'production' 
+    ? process.env.FRONTEND_URL_PROD 
+    : process.env.FRONTEND_URL_DEF;
+
+// Build allowed origins array
+const allowedOrigins = [];
+if (frontendURL) {
+    allowedOrigins.push(frontendURL);
+}
+// Keep existing hardcoded origins as fallback for backward compatibility
+allowedOrigins.push("http://localhost:5173", "https://canopy-ai.vercel.app");
+
+console.log(`CORS configured for MODE: ${MODE}, Frontend URL: ${frontendURL}`);
+console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
+
 app.use(cors({
     origin: function (origin, callback) {
         if (!origin || allowedOrigins.includes(origin)) {

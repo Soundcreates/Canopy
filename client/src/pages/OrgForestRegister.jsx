@@ -50,7 +50,7 @@ const OrgForestRegister = () => {
     const mapContainerRef = useRef(null);
     const mapRef = useRef(null);
     const drawRef = useRef(null);
-    const {orgId} = useParams();
+    const { orgId } = useParams();
     // State
     const [plotData, setPlotData] = useState(null);
     const [isDrawing, setIsDrawing] = useState(false);
@@ -60,11 +60,11 @@ const OrgForestRegister = () => {
     const [orgLoading, setOrgLoading] = useState(false);
     useEffect(() => {
         if (!orgId) return;
-        
+
         const fetchOrg = async () => {
             setOrgLoading(true);
             console.log("Fetching orgdetails from orgforestregister.jsx");
-            try{
+            try {
                 const response = await fetchOrganisationById(account || null, orgId);
                 console.log("Organisation fetched successfully:", response);
                 // Handle response structure - could be { organisation, members } or just the organisation object
@@ -74,7 +74,7 @@ const OrgForestRegister = () => {
                     setOrganisation(response);
                 }
                 setOrgLoading(false);
-            }catch(err){
+            } catch (err) {
                 console.error('Error fetching the orgs from orgforestregister.jsx:', err);
                 setOrgLoading(false);
                 // Only show error if it's not a connection refused (server might not be running)
@@ -83,7 +83,7 @@ const OrgForestRegister = () => {
                 }
             }
         };
-        
+
         fetchOrg();
     }, [orgId, account]); // Include both dependencies - account will be null initially, then string
 
@@ -112,15 +112,26 @@ const OrgForestRegister = () => {
     useEffect(() => {
         if (!mapContainerRef.current || mapRef.current || !mapboxgl.accessToken) return;
 
-        mapRef.current = new mapboxgl.Map({
-            container: mapContainerRef.current,
-            style: 'mapbox://styles/mapbox/dark-v11',
-            center: [-62.2159, -3.4653],
-            zoom: 3.5,
-            pitch: 45,
-            bearing: -17,
-            antialias: true,
-        });
+        // Initialize map - only if token exists
+        if (mapboxgl.accessToken) {
+            if (!mapContainerRef.current) return;
+            try {
+                mapRef.current = new mapboxgl.Map({
+                    container: mapContainerRef.current,
+                    style: 'mapbox://styles/mapbox/dark-v11',
+                    center: [-62.2159, -3.4653],
+                    zoom: 3.5,
+                    pitch: 45,
+                    bearing: -17,
+                    antialias: true,
+                });
+            } catch (e) {
+                console.error("Error creating mapbox instance", e);
+                return;
+            }
+        } else {
+            return;
+        }
 
         mapRef.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
         mapRef.current.addControl(new mapboxgl.GeolocateControl({
@@ -239,7 +250,25 @@ const OrgForestRegister = () => {
 
                     {/* Map */}
                     <div className="relative aspect-[16/9] w-full bg-[#0b0f14] border border-white/10 rounded-sm overflow-hidden shadow-2xl group flex-1 min-h-[400px]">
-                        <div ref={mapContainerRef} className="w-full h-full" />
+                        {mapboxgl.accessToken ? (
+                            <div ref={mapContainerRef} className="w-full h-full" />
+                        ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-[#05080c] relative overflow-hidden">
+                                <div className="z-10 text-center p-8 max-w-md border border-red-500/30 bg-red-500/5 rounded backdrop-blur-sm">
+                                    <div className="text-red-500 mb-4 flex justify-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                        </svg>
+                                    </div>
+                                    <h3 className="text-xl font-mono text-red-500 mb-2 uppercase tracking-wide">Mapbox Token Missing</h3>
+                                    <p className="text-gray-400 text-sm font-light">
+                                        The Mapbox public access token is not available. Please add <code className="bg-white/10 px-1 py-0.5 rounded text-white">VITE_MAPBOX_TOKEN</code> to your environment configuration to enable satellite views.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                         <div className="absolute top-4 left-4 bg-black/50 backdrop-blur border border-white/10 px-3 py-1.5 rounded-sm z-10 flex gap-2">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse mt-1"></span>
                             <span className="text-[10px] font-mono text-emerald-500">LIVE SATELLITE FEED</span>
@@ -295,7 +324,7 @@ const OrgForestRegister = () => {
                                             <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
                                             {/* Status Dot */}
                                             <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#11141a] ${member.status === 'VOTED' ? 'bg-emerald-500' :
-                                                    member.status === 'REJECTED' ? 'bg-red-500' : 'bg-gray-500'
+                                                member.status === 'REJECTED' ? 'bg-red-500' : 'bg-gray-500'
                                                 }`} ></div>
                                         </div>
                                         <div>
@@ -306,8 +335,8 @@ const OrgForestRegister = () => {
                                         </div>
                                     </div>
                                     <div className={`text-[10px] font-mono px-2 py-0.5 rounded border ${member.status === 'VOTED' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                                            member.status === 'REJECTED' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                                                'bg-white/5 text-gray-500 border-white/10'
+                                        member.status === 'REJECTED' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                                            'bg-white/5 text-gray-500 border-white/10'
                                         }`}>
                                         {member.status}
                                     </div>
