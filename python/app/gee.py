@@ -1,7 +1,19 @@
 import ee #earthengine
+import os
+import json
 ee.Authenticate()
 ee.Initialize(project="canopy-481209")
 
+def init_gee() :
+    service_account = os.environ("GEE_SERVICE_ACCOUNT")
+    key_data = json.loads(os.environ("GEE_PRIVATE_KEY"))
+    credentials = ee.ServiceAccountCredentials(
+        service_account,
+        key_data=key_data
+    )
+
+    ee.Initialize(credentials)
+    print("GEE initialized successfully")
 
 def compute_ndvi_gee(min_lon, min_lat, max_lon, max_lat):
     print("compute_ndvi_gee function called")

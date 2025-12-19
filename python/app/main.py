@@ -4,7 +4,7 @@ import io
 from app.sentinel import get_sentinel_client, find_scene, download_scene, find_band
 from app.image.pillow import generate_base_image
 from .types import NDVIRequest, GraphRequest
-from app.gee import compute_ndvi_gee
+from app.gee import compute_ndvi_gee , init_gee
 from app.utils.utils import generate_seed
 from app.graph import plot_graph
 
@@ -27,6 +27,8 @@ def health_check():
 
 @app.post("/ndvi") #this endpoint computes the ndvi value based on the data provided
 def compute_ndvi_endpoint(req: NDVIRequest): #this endpoint computes the ndvi value based on the data provided
+    print("Initializing GEE")
+    init_gee()
     print("NDVI computation endpoint called")
     print("Extracting request parameters")
     print("Forest ID:", req.forest_id)
