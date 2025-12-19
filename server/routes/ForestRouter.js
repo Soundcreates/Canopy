@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const requireWalletAuth = require("../middleware/requireWalletAuth");
-const { registerForest } = require("../handlers/ForestHandler");
+const { registerForest, getForests } = require("../handlers/ForestHandler");
 
 
 router.post("/register", requireWalletAuth, registerForest);
-
+router.get("/getForests", requireWalletAuth, getForests);
 
 module.exports = router;
 

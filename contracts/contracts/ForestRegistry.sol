@@ -23,7 +23,7 @@ contract ForestRegistry {
 
 
    constructor() {
-    forestCount = 0;
+    forestCount = 1;
    }
 
     function registerForest(uint area, string calldata geoHash) external {

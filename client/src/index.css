@@ -1,1 +1,36 @@
 @import 'tailwindcss';
+
+@theme {
+    --font-sans: "Playfair Display", serif;
+}
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+    }
+    
+    body {
+        font-family: var(--font-sans);
+        font-optical-sizing: auto;
+        font-weight: 400;
+        font-style: normal;
+        scroll-behavior: smooth;
+    }
+}
+
+.playfair-font {
+    font-family: "Playfair Display", serif;
+    font-optical-sizing: auto;
+    font-weight: 400;
+    font-style: normal;
+}
+
+
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width:none;
+}
+
+.scrollbar-hide::-webkit-scrollbar{
+    display: none;
+}

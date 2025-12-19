@@ -1,0 +1,1 @@
+ALTER TABLE "forest" ALTER COLUMN "area" SET DATA TYPE bigint;

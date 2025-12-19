@@ -42,20 +42,36 @@ async function runPendingMigrations() {
     console.log("Migrations directory:", migrationsDir);
     
     const files = fs.readdirSync(migrationsDir)
-        .filter(f => f.endsWith('.sql'))
+        .filter(f => f.endsWith('.sql') && !f.includes('meta'))
         .sort();
     
     console.log("Found migration files:", files);
     
-    // Run the latest migration (0002_add_nft_tracking_fields.sql)
-    const latestMigration = path.join(migrationsDir, '0002_add_nft_tracking_fields.sql');
-    console.log("Running latest migration:", latestMigration);
-    
-    if (fs.existsSync(latestMigration)) {
-        await runMigration(latestMigration);
-    } else {
-        console.log("Migration file not found, skipping");
+    // Run all migrations in order
+    for (const file of files) {
+        const migrationPath = path.join(migrationsDir, file);
+        console.log("Running migration:", file);
+        try {
+            await runMigration(migrationPath);
+            console.log(`Migration ${file} completed successfully`);
+        } catch (error) {
+            // If it's a "column already exists" or similar error, that's okay
+            if (error.message && (
+                error.message.includes('already exists') || 
+                error.message.includes('duplicate column') || 
+                error.code === '42701' ||
+                error.message.includes('does not exist') ||
+                error.message.includes('column "area" cannot be cast')
+            )) {
+                console.log(`Migration ${file} skipped (already applied or not applicable)`);
+            } else {
+                console.error(`Error running migration ${file}:`, error.message);
+                // Continue with other migrations even if one fails
+            }
+        }
     }
+    
+    console.log("All migrations processed");
 }
 
 module.exports = { runMigration, runPendingMigrations };

@@ -21,3 +21,8 @@ class NFTImageRequest(BaseModel):
     area_hectares: float     # e.g. 12.4
 
     status: str 
+
+class GraphRequest(BaseModel):
+    ndvi_delta:float
+    forest_id:int
+    time:str

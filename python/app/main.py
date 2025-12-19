@@ -3,9 +3,10 @@ from dotenv import load_dotenv
 import io
 from app.sentinel import get_sentinel_client, find_scene, download_scene, find_band
 from app.image.pillow import generate_base_image
-from .types import NDVIRequest, NFTImageRequest
+from .types import NDVIRequest, GraphRequest
 from app.gee import compute_ndvi_gee
 from app.utils.utils import generate_seed
+from app.graph import plot_graph
 
 load_dotenv()
 
@@ -140,73 +141,35 @@ def build_footprint(req):
         req.max_lon
     )
 
-@app.post("/generate-nft-image") #this endpoint generates the nft image based on the data provided
-def compute_image_endpoint(req: NFTImageRequest):
-    print("NFT image generation endpoint called")
+@app.post("/generate-nft-graph") #this endpoint generates the nft graph image based on the data provided
+def compute_image_endpoint(req: GraphRequest):
+    #instead of generating an image, we will return a plot image
+    print("NFT Graph Image generation endpoint called")
     print("Extracting request parameters")
     print("Forest ID:", req.forest_id)
-    print("Epoch Start:", req.epoch_start)
-    print("Epoch End:", req.epoch_end)
     print("NDVI Delta:", req.ndvi_delta)
-    print("Confidence:", req.confidence)
-    print("Carbon Tons:", req.carbon_tons)
-    print("Area Hectares:", req.area_hectares)
-    print("Status:", req.status)
-    
-    print("Generating seed from forest_id, epoch_start, and epoch_end")
-    seed = generate_seed(
-        req.forest_id,
-        req.epoch_start,
-        req.epoch_end
-    )
-    print("Seed generated:", seed)
-    
-    print("Preparing data dict for generate_base_image")
-    data = {
-        "ndvi_delta": req.ndvi_delta,
-        "confidence": req.confidence,
-        "status": req.status
-    }
-    print("Data dict prepared:", data)
-    
-    print("Calling generate_base_image function")
-    base_img = generate_base_image(data)
-    print("Base image generated")
-    print("Base image size:", base_img.size)
-    print("Base image mode:", base_img.mode)
-    
-    print("Using base image directly (no SDXL refinement)")
-    final_img = base_img
-
-    print("Creating BytesIO buffer for image")
-    buf = io.BytesIO()
-    print("Saving final image to buffer in PNG format")
-    final_img.save(buf, format="PNG")
-    print("Image saved to buffer")
-    print("Buffer size:", buf.tell(), "bytes")
-    
-    print("Seeking buffer to beginning")
-    buf.seek(0)
-    print("Reading buffer content")
-    image_content = buf.read()
-    print("Image content read, size:", len(image_content), "bytes")
-    
-    print("Preparing response headers")
-    response_headers = {
-        "X-Seed": str(seed),
-        "X-Forest-Id": str(req.forest_id),
-        "X-NDVI-Delta": str(req.ndvi_delta),
-        "X-Confidence": str(req.confidence),
-        "X-Status": req.status
-    }
-    print("Response headers prepared:", response_headers)
-    
-    print("Creating Response object")
-    response = Response(
-        content=image_content,
-        media_type="image/png",
-        headers=response_headers
-    )
-    print("Response object created")
-    print("Returning image response")
-    return response
+    print("Time Period:", req.time)
+    print("Passing the parameters to the graph generation factory")
+    try:
+        # Generate graph with time periods and NDVI values
+        response = plot_graph([0, int(req.time)], [0, req.ndvi_delta], f"Forest {req.forest_id} NDVI Change")
+        if response["success"] != True:
+            raise HTTPException(
+                status_code=500,
+                detail="Graph generation failed"
+            )
+        else:
+            print("Graph generated successfully, returning image")
+            # Convert PIL image to bytes
+            img_bytes = io.BytesIO()
+            response["image"].save(img_bytes, format='PNG')
+            img_bytes.seek(0)
+            return Response(content=img_bytes.getvalue(), media_type="image/png")
+    except Exception as e:
+        print(f"Error during graph generation: {e}")
+        import traceback
+        print("Traceback:", traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate graph: {str(e)}"
+        )

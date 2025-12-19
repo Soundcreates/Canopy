@@ -173,30 +173,33 @@ async function getNDVI(req, res) {
             .where(eq(ForestModel.forestId, forest_id));
         console.log("Verification record persisted");
 
-        // Step 4: Generate NFT image
-        console.log("Step 4: Generating NFT image");
-        const imageRequest = {
+        // Step 4: Generate NFT graph image
+        console.log("Step 4: Generating NFT graph image");
+        // Calculate time period (use epoch dates if provided, otherwise default to 30 days)
+        let timePeriod = 30; // Default to 30 days
+        if (epoch_start && epoch_end) {
+            const startDate = new Date(epoch_start);
+            const endDate = new Date(epoch_end);
+            timePeriod = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)); // Days difference
+        }
+        
+        const graphRequest = {
             forest_id,
-            epoch_start: epoch_start || new Date().toISOString().split('T')[0],
-            epoch_end: epoch_end || new Date().toISOString().split('T')[0],
             ndvi_delta: parseFloat(ndvi) || 0.5, // Use computed NDVI as delta
-            confidence: parseFloat(confidence) || 0.95,
-            carbon_tons: carbon_tons || 0,
-            area_hectares: area_hectares || forest.area / 10000, // Convert from m² to hectares
-            status: status
+            time: timePeriod.toString() // Time period in days
         };
 
-        console.log("Image request payload:", imageRequest);
-        console.log("Sending POST request to http://localhost:8000/generate-nft-image");
+        console.log("Graph request payload:", graphRequest);
+        console.log("Sending POST request to http://localhost:8000/generate-nft-graph");
         const imageController = new AbortController();
-        const imageTimeout = setTimeout(() => imageController.abort(), 60000); // 1 minute timeout (base image is fast)
+        const imageTimeout = setTimeout(() => imageController.abort(), 60000); // 1 minute timeout
         
         let imageResponse;
         try {
-            imageResponse = await fetch("http://localhost:8000/generate-nft-image", {
+            imageResponse = await fetch("http://localhost:8000/generate-nft-graph", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(imageRequest),
+                body: JSON.stringify(graphRequest),
                 signal: imageController.signal
             });
             clearTimeout(imageTimeout);
@@ -229,20 +232,7 @@ async function getNDVI(req, res) {
         const imageBuffer = Buffer.from(imageArrayBuffer);
         console.log("Buffer created, size:", imageBuffer.length, "bytes");
         
-        console.log("Extracting headers from image response");
-        const imageSeed = imageResponse.headers.get('X-Seed');
-        console.log("X-Seed header:", imageSeed);
-        const forestIdHeader = imageResponse.headers.get('X-Forest-Id');
-        console.log("X-Forest-Id header:", forestIdHeader);
-        const ndviDeltaHeader = imageResponse.headers.get('X-NDVI-Delta');
-        console.log("X-NDVI-Delta header:", ndviDeltaHeader);
-        const confidenceHeader = imageResponse.headers.get('X-Confidence');
-        console.log("X-Confidence header:", confidenceHeader);
-        const statusHeader = imageResponse.headers.get('X-Status');
-        console.log("X-Status header:", statusHeader);
-        
-        console.log("NFT image generated successfully");
-        console.log("Image seed:", imageSeed);
+        console.log("NFT graph image generated successfully");
         console.log("Image buffer size:", imageBuffer.length, "bytes");
 
         // Step 5: Upload image + metadata
@@ -269,8 +259,7 @@ async function getNDVI(req, res) {
                 { trait_type: "Carbon Tons", value: carbon_tons || 0 },
                 { trait_type: "Area Hectares", value: area_hectares || forest.area / 10000 },
                 { trait_type: "Status", value: status },
-                { trait_type: "Verification Date", value: currentDate.toISOString() },
-                { trait_type: "Seed", value: imageSeed || "unknown" }
+                { trait_type: "Verification Date", value: currentDate.toISOString() }
             ],
             properties: {
                 forest_id,
