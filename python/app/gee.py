@@ -1,6 +1,5 @@
 import ee #earthengine
 import os
-import json
 
 def init_gee() :
     service_account = os.environ.get("GEE_SERVICE_ACCOUNT")
@@ -11,10 +10,11 @@ def init_gee() :
     if not private_key:
         raise ValueError("GEE_PRIVATE_KEY environment variable is not set")
     
-    key_data = json.loads(private_key)
+    # ServiceAccountCredentials expects key_data as a JSON string, not a parsed dict
+    # It will parse it internally
     credentials = ee.ServiceAccountCredentials(
         service_account,
-        key_data=key_data
+        key_data=private_key
     )
 
     ee.Initialize(credentials)
