@@ -1,8 +1,6 @@
 import ee #earthengine
 import os
 import json
-ee.Authenticate()
-ee.Initialize(project="canopy-481209")
 
 def init_gee() :
     service_account = os.environ("GEE_SERVICE_ACCOUNT")
