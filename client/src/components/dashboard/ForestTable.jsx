@@ -55,7 +55,7 @@ const ForestTable = () => {
                         // Fallback: if data itself is an array
                         forestsArray = response.data;
                     } else if (response.data && typeof response.data === 'object') {
-                        // Try to find any array property
+                        // Try k find any array property
                         const keys = Object.keys(response.data);
                         console.log("ForestTable: Response.data keys:", keys);
                         for (const key of keys) {

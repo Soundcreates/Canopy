@@ -12,6 +12,8 @@
   "dependencies": {
     "@fontsource/roboto-mono": "^5.2.8",
     "@mapbox/mapbox-gl-draw": "^1.5.1",
+    "@react-spring/parallax": "^10.0.3",
+    "@react-spring/web": "^10.0.3",
     "@react-three/fiber": "^9.4.2",
     "@react-three/postprocessing": "^3.0.4",
     "@tailwindcss/vite": "^4.1.18",
@@ -26,6 +28,7 @@
     "react-dom": "^19.2.0",
     "react-map-gl": "^8.1.0",
     "react-router-dom": "^7.10.1",
+    "react-toastify": "^11.0.5",
     "recharts": "^3.6.0",
     "tailwindcss": "^4.1.18",
     "three": "^0.182.0"

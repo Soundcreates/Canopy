@@ -27,12 +27,26 @@ const DashboardPage = () => {
                             {/* Header Actions */}
                             <div className="flex justify-between items-center">
                                 <h2 className="text-xl font-medium text-white/90">Overview</h2>
-                                <button
-                                    onClick={() => navigate('/register')}
-                                    className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-mono font-medium rounded border border-emerald-500/20 transition-colors flex items-center gap-2 tracking-wide"
-                                >
-                                    + REGISTER FOREST
-                                </button>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => navigate('/create-org')}
+                                        className="px-4 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 text-xs font-mono font-medium rounded border border-purple-500/20 transition-colors flex items-center gap-2 tracking-wide"
+                                    >
+                                        + CREATE ORG
+                                    </button>
+                                    <button
+                                        onClick={() => navigate('/organisation')}
+                                        className="px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-mono font-medium rounded border border-blue-500/20 transition-colors flex items-center gap-2 tracking-wide"
+                                    >
+                                        MY ORGANISATIONS
+                                    </button>
+                                    <button
+                                        onClick={() => navigate('/register')}
+                                        className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-mono font-medium rounded border border-emerald-500/20 transition-colors flex items-center gap-2 tracking-wide"
+                                    >
+                                        + REGISTER FOREST
+                                    </button>
+                                </div>
                             </div>
 
                             <KPIGrid />

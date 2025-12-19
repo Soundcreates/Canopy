@@ -3,6 +3,7 @@ const { db } = require('../config/db');
 const { eq } = require('drizzle-orm');
 const CarbonCreditNFTContext = require('../contexts/CarbonCreditNFTContext');
 const { uploadImageToIPFS, uploadMetadataToIPFS, getImageFromIPFS } = require('../utils/PinataUtil');
+const { classifyAOI } = require('../utils/BhuvanService');
 
 async function getNDVI(req, res) {
     console.log("=== NDVI Pipeline Started ===");
@@ -25,7 +26,7 @@ async function getNDVI(req, res) {
         console.log("Forest ID: ", forest_id);
         console.log("Coordinates: ", { min_lon, max_lon, min_lat, max_lat });
 
-        // Validate required fields
+        // Validate required fields first (before making API calls)
         if (!forest_id || min_lon === undefined || max_lon === undefined || 
             min_lat === undefined || max_lat === undefined) {
             return res.status(400).json({ 
@@ -48,10 +49,6 @@ async function getNDVI(req, res) {
         const forest = forests[0];
         console.log("Forest found: ", forest.owner);
 
-        // Step 2: Fetch satellite data and compute NDVI
-        console.log("Step 2: Computing NDVI from satellite data");
-        console.log("Validating coordinates before sending to Python backend");
-        
         // Validate coordinates on Node.js side as well
         if (min_lon >= max_lon) {
             console.log("Validation failed: min_lon must be less than max_lon");
@@ -86,6 +83,43 @@ async function getNDVI(req, res) {
         }
         
         console.log("Coordinate validation passed");
+
+        // Step 0: Check if the area is built-up using LULC classification
+        // This check happens before NDVI computation to avoid processing built-up areas
+        console.log("Step 0: Checking land classification (built-up vs non-built-up)");
+        try {
+            const lulcClassification = await classifyAOI(min_lat, max_lat, min_lon, max_lon);
+            console.log("LULC Classification result:", lulcClassification);
+            
+            if (lulcClassification.is_built_up) {
+                console.log("Area is classified as built-up. Stopping NDVI pipeline.");
+                return res.status(400).json({ 
+                    error: 'Area is built-up',
+                    message: 'Cannot process NDVI for built-up areas. Only forest/agriculture/plain land is allowed.',
+                    lulc_data: {
+                        is_built_up: lulcClassification.is_built_up,
+                        dominant_land_type: lulcClassification.dominant_land_type,
+                        built_up_percentage: lulcClassification.built_up_percentage,
+                        confidence: lulcClassification.confidence
+                    }
+                });
+            }
+            console.log("Area is non-built-up. Proceeding with NDVI pipeline.");
+        } catch (lulcError) {
+            console.error("Error during LULC classification:", lulcError);
+            // If LULC check fails, we can either:
+            // Option 1: Fail the request (strict) - uncomment to enable
+            // return res.status(502).json({ 
+            //     error: 'LULC classification service unavailable',
+            //     message: lulcError.message 
+            // });
+            
+            // Option 2: Log warning but continue (lenient - for development)
+            console.warn("LULC classification failed, but continuing with NDVI pipeline:", lulcError.message);
+        }
+
+        // Step 2: Fetch satellite data and compute NDVI
+        console.log("Step 2: Computing NDVI from satellite data");
         console.log("Sending POST request to http://localhost:8000/ndvi");
         const ndviController = new AbortController();
         const ndviTimeout = setTimeout(() => ndviController.abort(), 300000); // 5 minutes timeout
@@ -159,6 +193,7 @@ async function getNDVI(req, res) {
         console.log("NDVI value:", ndvi);
         console.log("Confidence value:", confidence);
         console.log("Returned coordinates - Min Lon:", returned_min_lon, "Max Lon:", returned_max_lon, "Min Lat:", returned_min_lat, "Max Lat:", returned_max_lat);
+        
 
         // Step 3: Persist verification record
         console.log("Step 3: Persisting verification record");

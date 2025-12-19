@@ -1,0 +1,639 @@
+{
+  "id": "a1487a18-a1ef-4393-b5ac-b3ff97abb230",
+  "prevId": "da2c4ac6-1436-49c1-a5bf-6a0fc78de318",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "users_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "address": {
+          "name": "address",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_address_unique": {
+          "name": "users_address_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "address"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.forest": {
+      "name": "forest",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "forest_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "forestId": {
+          "name": "forestId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner": {
+          "name": "owner",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "area": {
+          "name": "area",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "geoHash": {
+          "name": "geoHash",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "txHash": {
+          "name": "txHash",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "isActive": {
+          "name": "isActive",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "latestTokenId": {
+          "name": "latestTokenId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "latestMetadataUri": {
+          "name": "latestMetadataUri",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastVerificationDate": {
+          "name": "lastVerificationDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastNDVI": {
+          "name": "lastNDVI",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastConfidence": {
+          "name": "lastConfidence",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totalCarbonCredits": {
+          "name": "totalCarbonCredits",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "forest_owner_users_address_fk": {
+          "name": "forest_owner_users_address_fk",
+          "tableFrom": "forest",
+          "tableTo": "users",
+          "columnsFrom": [
+            "owner"
+          ],
+          "columnsTo": [
+            "address"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "forest_forestId_unique": {
+          "name": "forest_forestId_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "forestId"
+          ]
+        },
+        "forest_txHash_unique": {
+          "name": "forest_txHash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "txHash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Organisation": {
+      "name": "Organisation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Organisation_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "endDate": {
+          "name": "endDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner": {
+          "name": "owner",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "isActive": {
+          "name": "isActive",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "Organisation_owner_users_address_fk": {
+          "name": "Organisation_owner_users_address_fk",
+          "tableFrom": "Organisation",
+          "tableTo": "users",
+          "columnsFrom": [
+            "owner"
+          ],
+          "columnsTo": [
+            "address"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.OrganisationMemberModel": {
+      "name": "OrganisationMemberModel",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "OrganisationMemberModel_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "organisationId": {
+          "name": "organisationId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "userAddress": {
+          "name": "userAddress",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "joinedAt": {
+          "name": "joinedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "pastMembers": {
+          "name": "pastMembers",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "leftDate": {
+          "name": "leftDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": null
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "OrganisationMemberModel_organisationId_Organisation_id_fk": {
+          "name": "OrganisationMemberModel_organisationId_Organisation_id_fk",
+          "tableFrom": "OrganisationMemberModel",
+          "tableTo": "Organisation",
+          "columnsFrom": [
+            "organisationId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "OrganisationMemberModel_userAddress_pastMembers_users_address_address_fk": {
+          "name": "OrganisationMemberModel_userAddress_pastMembers_users_address_address_fk",
+          "tableFrom": "OrganisationMemberModel",
+          "tableTo": "users",
+          "columnsFrom": [
+            "userAddress",
+            "pastMembers"
+          ],
+          "columnsTo": [
+            "address",
+            "address"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.governance_proposals": {
+      "name": "governance_proposals",
+      "schema": "",
+      "columns": {
+        "proposalId": {
+          "name": "proposalId",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "proposer": {
+          "name": "proposer",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "minNdviDelta": {
+          "name": "minNdviDelta",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "minConfidence": {
+          "name": "minConfidence",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "verificationIntervalDays": {
+          "name": "verificationIntervalDays",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "startBlock": {
+          "name": "startBlock",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "endBlock": {
+          "name": "endBlock",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "executed": {
+          "name": "executed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "governance_proposals_proposer_idx": {
+          "name": "governance_proposals_proposer_idx",
+          "columns": [
+            {
+              "expression": "proposer",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "governance_proposals_executed_idx": {
+          "name": "governance_proposals_executed_idx",
+          "columns": [
+            {
+              "expression": "executed",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "governance_proposals_end_block_idx": {
+          "name": "governance_proposals_end_block_idx",
+          "columns": [
+            {
+              "expression": "endBlock",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.governance_votes": {
+      "name": "governance_votes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "governance_votes_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "proposalId": {
+          "name": "proposalId",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "voter": {
+          "name": "voter",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "support": {
+          "name": "support",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "votingPower": {
+          "name": "votingPower",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "votedAt": {
+          "name": "votedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "governance_votes_proposal_id_idx": {
+          "name": "governance_votes_proposal_id_idx",
+          "columns": [
+            {
+              "expression": "proposalId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "governance_votes_voter_idx": {
+          "name": "governance_votes_voter_idx",
+          "columns": [
+            {
+              "expression": "voter",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "governance_votes_proposal_voter_idx": {
+          "name": "governance_votes_proposal_voter_idx",
+          "columns": [
+            {
+              "expression": "proposalId",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "voter",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

@@ -29,6 +29,27 @@
       "when": 1765973226311,
       "tag": "0003_material_mojo",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1766131263081,
+      "tag": "0004_deep_sauron",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1766132021161,
+      "tag": "0005_thankful_shinobi_shaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1766132731210,
+      "tag": "0006_supreme_hex",
+      "breakpoints": true
     }
   ]
 }
