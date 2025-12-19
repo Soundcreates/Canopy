@@ -3,8 +3,15 @@ import os
 import json
 
 def init_gee() :
-    service_account = os.environ("GEE_SERVICE_ACCOUNT")
-    key_data = json.loads(os.environ("GEE_PRIVATE_KEY"))
+    service_account = os.environ.get("GEE_SERVICE_ACCOUNT")
+    private_key = os.environ.get("GEE_PRIVATE_KEY")
+    
+    if not service_account:
+        raise ValueError("GEE_SERVICE_ACCOUNT environment variable is not set")
+    if not private_key:
+        raise ValueError("GEE_PRIVATE_KEY environment variable is not set")
+    
+    key_data = json.loads(private_key)
     credentials = ee.ServiceAccountCredentials(
         service_account,
         key_data=key_data
