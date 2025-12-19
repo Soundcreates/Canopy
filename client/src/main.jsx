@@ -6,6 +6,7 @@ import { WalletProvider } from './contexts/WalletContext'
 import { ForestRegistryProvider } from './contexts/ForestRegistryContext'
 import { CarbonCreditNFTProvider } from './contexts/CarbonCreditNFTContext'
 import { SelectedForestProvider } from './contexts/SelectedForestContext'
+import { OrganisationProvider } from './contexts/OrganisationContext'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -13,7 +14,9 @@ createRoot(document.getElementById('root')).render(
       <ForestRegistryProvider>
         <CarbonCreditNFTProvider>
           <SelectedForestProvider>
-            <App />
+            <OrganisationProvider>
+              <App />
+            </OrganisationProvider>
           </SelectedForestProvider>
         </CarbonCreditNFTProvider>
       </ForestRegistryProvider>

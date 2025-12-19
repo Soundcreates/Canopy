@@ -11,6 +11,7 @@ import mapboxgl from 'mapbox-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import * as turf from '@turf/turf';
 import { useNavigate } from 'react-router-dom';
+import { showToast } from '../utils/toast';
 
 //if you need to run the mapbox map, u need to have a mapbox account which provides a public access token
 //mapbox is free for limited usage , just need to signup using a card
@@ -405,17 +406,17 @@ const ForestRegister = () => {
    */
   const handleSubmit = async () => {
     if (!plotData) {
-      alert('Please draw a plot on the map before submitting.');
+      showToast.warning('Please draw a plot on the map before submitting.');
       return;
     }
 
     if (!formData.name.trim()) {
-      alert('Please enter a forest name.');
+      showToast.warning('Please enter a forest name.');
       return;
     }
 
     if (!account) {
-      alert('Please connect your wallet first.');
+      showToast.error('Please connect your wallet first.');
       return;
     }
 
@@ -470,10 +471,12 @@ const ForestRegister = () => {
       
       if (!forestId) {
         console.error('Forest ID not found in response:', response);
+        showToast.error('Forest registration succeeded but forest ID not found in response');
         throw new Error('Forest registration succeeded but forest ID not found in response');
       }
 
       console.log('Forest ID received:', forestId);
+      showToast.info(`Forest registered! Starting NDVI computation...`);
       
       // Immediately call NDVI endpoint after registration
       console.log('Calling NDVI endpoint immediately after registration');
@@ -492,6 +495,7 @@ const ForestRegister = () => {
         console.log('Initial NDVI computation completed successfully');
       } catch (ndviError) {
         console.error('Error calling initial NDVI:', ndviError);
+        showToast.warning('Initial NDVI computation failed. Monitoring will retry later.');
         // Don't throw - allow registration to succeed even if initial NDVI fails
         // The monitoring will retry later
       }
@@ -531,25 +535,21 @@ const ForestRegister = () => {
         startedAt: new Date().toISOString()
       }));
       
-      // Show success message
-      // alert(`Forest registered successfully! Forest ID: ${forestId}`);
-      
       // Clear the form and plot
       setPlotData(null);
       
       // Navigate to dashboard
-      navigate('/dashboard');
+      showToast.success('Registration complete! Redirecting to dashboard...');
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1500);
       
     } catch (error) {
       console.error('Error submitting forest registration:', error);
+      setIsSubmitting(false);
       
-      // Provide user-friendly error messages
-      let errorMessage = error.message;
-      if (error.message.includes('Authentication') || error.message.includes('signature') || error.message.includes('Please sign in')) {
-        errorMessage = `${error.message}\n\nPlease go to the landing page, connect your wallet, and sign the authentication message.`;
-      }
-      
-      alert(`Failed to register forest: ${errorMessage}`);
+      // Toast notification already shown by registerForest function
+      // Just log here for debugging
     } finally {
       setIsSubmitting(false);
     }

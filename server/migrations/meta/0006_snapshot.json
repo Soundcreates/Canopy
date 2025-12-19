@@ -1,0 +1,414 @@
+{
+  "id": "c5d5e577-1d27-4728-ac69-933a3539e548",
+  "prevId": "a1487a18-a1ef-4393-b5ac-b3ff97abb230",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.users": {
+      "name": "users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "users_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "address": {
+          "name": "address",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_address_unique": {
+          "name": "users_address_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "address"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.forest": {
+      "name": "forest",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "forest_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "forestId": {
+          "name": "forestId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner": {
+          "name": "owner",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "area": {
+          "name": "area",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "geoHash": {
+          "name": "geoHash",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "txHash": {
+          "name": "txHash",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "isActive": {
+          "name": "isActive",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "latestTokenId": {
+          "name": "latestTokenId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "latestMetadataUri": {
+          "name": "latestMetadataUri",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastVerificationDate": {
+          "name": "lastVerificationDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastNDVI": {
+          "name": "lastNDVI",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "lastConfidence": {
+          "name": "lastConfidence",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totalCarbonCredits": {
+          "name": "totalCarbonCredits",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "forest_owner_users_address_fk": {
+          "name": "forest_owner_users_address_fk",
+          "tableFrom": "forest",
+          "tableTo": "users",
+          "columnsFrom": [
+            "owner"
+          ],
+          "columnsTo": [
+            "address"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "forest_forestId_unique": {
+          "name": "forest_forestId_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "forestId"
+          ]
+        },
+        "forest_txHash_unique": {
+          "name": "forest_txHash_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "txHash"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.Organisation": {
+      "name": "Organisation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "Organisation_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "startDate": {
+          "name": "startDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "endDate": {
+          "name": "endDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "image": {
+          "name": "image",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "owner": {
+          "name": "owner",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "isActive": {
+          "name": "isActive",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "Organisation_owner_users_address_fk": {
+          "name": "Organisation_owner_users_address_fk",
+          "tableFrom": "Organisation",
+          "tableTo": "users",
+          "columnsFrom": [
+            "owner"
+          ],
+          "columnsTo": [
+            "address"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.OrganisationMemberModel": {
+      "name": "OrganisationMemberModel",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "type": "always",
+            "name": "OrganisationMemberModel_id_seq",
+            "schema": "public",
+            "increment": "1",
+            "startWith": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "cache": "1",
+            "cycle": false
+          }
+        },
+        "organisationId": {
+          "name": "organisationId",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "userAddress": {
+          "name": "userAddress",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "joinedAt": {
+          "name": "joinedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "leftDate": {
+          "name": "leftDate",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": null
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "OrganisationMemberModel_organisationId_Organisation_id_fk": {
+          "name": "OrganisationMemberModel_organisationId_Organisation_id_fk",
+          "tableFrom": "OrganisationMemberModel",
+          "tableTo": "Organisation",
+          "columnsFrom": [
+            "organisationId"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "OrganisationMemberModel_userAddress_users_address_fk": {
+          "name": "OrganisationMemberModel_userAddress_users_address_fk",
+          "tableFrom": "OrganisationMemberModel",
+          "tableTo": "users",
+          "columnsFrom": [
+            "userAddress"
+          ],
+          "columnsTo": [
+            "address"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
