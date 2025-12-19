@@ -5,7 +5,10 @@ import { useNavigate } from 'react-router-dom';
 import FaultyTerminal from '../FaultyTerminal';
 import { verifyAuth } from '../../ApiFactory/AuthAPI';
 import { showToast } from '../../utils/toast';
-const API_BASE_URL = 'http://localhost:3000/api';
+import { getApiBaseUrl } from '../../utils/apiConfig';
+
+const baseUrl = getApiBaseUrl();
+const API_BASE_URL = `${baseUrl}/api`;
 
 const HeroSection = ({ itemVariants }) => {
     const navigate = useNavigate();

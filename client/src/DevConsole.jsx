@@ -13,9 +13,11 @@
 
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
+import { getApiBaseUrl } from '../utils/apiConfig';
 
-// Backend API base URL - adjust if needed
-const API_BASE_URL = 'http://localhost:3000/api';
+// Backend API base URL - uses environment-based configuration
+const baseUrl = getApiBaseUrl();
+const API_BASE_URL = `${baseUrl}/api`;
 
 function DevConsole() {
   // Wallet connection state

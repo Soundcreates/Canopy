@@ -1,6 +1,7 @@
 import { showToast } from '../utils/toast';
+import { getApiBaseUrl } from '../utils/apiConfig';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = getApiBaseUrl();
 
 export const verifyAuth = async (address , message , signature) => {
     console.log('Verifying authentication...from frontend');

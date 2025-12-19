@@ -1,5 +1,6 @@
 import { createContext, useContext, useState } from 'react';
 import { useWallet } from './WalletContext';
+import { getApiBaseUrl } from '../utils/apiConfig';
 
 const OrganisationContext = createContext();
 
@@ -11,7 +12,8 @@ export const useOrganisation = () => {
   return context;
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api';
+// Get API base URL (without /api suffix - we'll add it when needed)
+const API_BASE_URL = getApiBaseUrl();
 
 export const OrganisationProvider = ({ children }) => {
   const { account, signer } = useWallet();
@@ -52,7 +54,7 @@ export const OrganisationProvider = ({ children }) => {
     if (method === 'GET' || method === 'HEAD') {
       // Add address as query parameter
       const separator = endpoint.includes('?') ? '&' : '?';
-      const urlWithParams = `${API_BASE_URL}${endpoint}${separator}address=${encodeURIComponent(account)}`;
+      const urlWithParams = `${API_BASE_URL}/api${endpoint}${separator}address=${encodeURIComponent(account)}`;
       const response = await fetch(urlWithParams, fetchOptions);
       const data = await response.json();
       if (!response.ok) {
@@ -77,7 +79,7 @@ export const OrganisationProvider = ({ children }) => {
       };
       fetchOptions.body = JSON.stringify(requestBody);
 
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, fetchOptions);
+      const response = await fetch(`${API_BASE_URL}/api${endpoint}`, fetchOptions);
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || data.message || `HTTP ${response.status}: Request failed`);
@@ -260,7 +262,7 @@ export const OrganisationProvider = ({ children }) => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/organisations/marketplace`, {
+      const response = await fetch(`${API_BASE_URL}/api/organisations/marketplace`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
