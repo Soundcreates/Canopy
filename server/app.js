@@ -33,19 +33,32 @@ if (frontendURL) {
     allowedOrigins.push(frontendURL);
 }
 // Keep existing hardcoded origins as fallback for backward compatibility
-allowedOrigins.push("http://localhost:5173", "https://canopy-ai.vercel.app");
+allowedOrigins.push(
+    "http://localhost:5173", 
+    "https://canopy-ai.vercel.app",
+    "https://canopy-chi.vercel.app" // Production frontend URL
+);
 
 console.log(`CORS configured for MODE: ${MODE}, Frontend URL: ${frontendURL}`);
 console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
 
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) {
+            return callback(null, true);
+        }
+        
+        if (allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
+            console.warn(`CORS blocked origin: ${origin}`);
             callback(new Error("Not allowed by CORS"));
         }
     },
+    credentials: true, // Allow cookies/credentials
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 // Increase JSON body size limit to handle base64 images (50MB limit)
