@@ -12,6 +12,26 @@ const TopNav = () => {
         <nav className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-[#0b0f14] sticky top-0 z-50">
             {/* Left: Logo/Brand */}
             <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1 mr-2 border-r border-white/5 pr-3">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors"
+                        title="Go Back"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <button
+                        onClick={() => navigate(1)}
+                        className="p-1.5 rounded-md hover:bg-white/5 text-gray-500 hover:text-white transition-colors"
+                        title="Go Forward"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </div>
                 <div className="w-6 h-6 bg-emerald-500 rounded-sm flex items-center justify-center">
                     <div className="w-2 h-2 bg-[#0b0f14] rounded-full"></div>
                 </div>
