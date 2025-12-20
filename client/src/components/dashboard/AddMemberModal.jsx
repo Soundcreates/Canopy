@@ -1,54 +1,98 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useWallet } from '../../contexts/WalletContext';
+import { useParams } from 'react-router-dom';
+import { searchUsers } from '../../ApiFactory/UserAPI';
+import { sendInvitation } from '../../ApiFactory/InvitationAPI';
+import { toast } from 'react-toastify';
 
-// Mock database of users to search from
-const MOCK_USERS_DB = [
-    { id: '1', name: 'Dr. Emily Chen', address: '0x71C...9A21', email: 'emily.c@research.org', avatar: 'https://i.pravatar.cc/150?u=1' },
-    { id: '2', name: 'Marcus Thorne', address: '0x3B2...44F2', email: 'm.thorne@eco-fund.com', avatar: 'https://i.pravatar.cc/150?u=2' },
-    { id: '3', name: 'Sarah Oconnell', address: '0x9A1...88B0', email: 's.oconnell@forest-guard.org', avatar: 'https://i.pravatar.cc/150?u=3' },
-    { id: '4', name: 'David Kim', address: '0xF22...11C9', email: 'david.kim@carbon-registry.io', avatar: 'https://i.pravatar.cc/150?u=4' },
-    { id: '5', name: 'Elena Rodriguez', address: '0x1D4...99E3', email: 'elena.r@amazonia.br', avatar: 'https://i.pravatar.cc/150?u=5' },
-    { id: '6', name: 'James Wilson', address: '0x5C8...22A1', email: 'j.wilson@green-tech.co', avatar: 'https://i.pravatar.cc/150?u=6' },
-    { id: '7', name: 'Aisha Patel', address: '0x8B3...77D4', email: 'a.patel@climate-dao.eth', avatar: 'https://i.pravatar.cc/150?u=7' },
-];
-
-const AddMemberModal = ({ isOpen, onClose }) => {
+const AddMemberModal = ({ isOpen, onClose, organisationId }) => {
+    const { account, signer } = useWallet();
     const [query, setQuery] = useState('');
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
     const [invitedUsers, setInvitedUsers] = useState(new Set());
+    const [sendingInvite, setSendingInvite] = useState(false);
 
     useEffect(() => {
-        // Debounce search simulation
+        // Load default list when modal opens
+        if (isOpen && query.length === 0) {
+            loadDefaultUsers();
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        // Debounce search
         const timer = setTimeout(() => {
             if (query.length > 0) {
                 handleSearch(query);
-            } else {
-                setResults([]);
+            } else if (isOpen) {
+                loadDefaultUsers();
             }
         }, 300);
 
         return () => clearTimeout(timer);
-    }, [query]);
+    }, [query, isOpen]);
+
+    const loadDefaultUsers = async () => {
+        setLoading(true);
+        try {
+            const response = await searchUsers('', 50);
+            setResults(response.users || []);
+        } catch (error) {
+            console.error('Error loading users:', error);
+            setResults([]);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSearch = async (searchQuery) => {
         setLoading(true);
-        // Simulate API latency
-        await new Promise(resolve => setTimeout(resolve, 600));
-
-        const filtered = MOCK_USERS_DB.filter(user =>
-            user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            user.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            user.email.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-
-        setResults(filtered);
-        setLoading(false);
+        try {
+            const response = await searchUsers(searchQuery, 50);
+            setResults(response.users || []);
+        } catch (error) {
+            console.error('Error searching users:', error);
+            setResults([]);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleInvite = (userId) => {
-        // In a real app, invite logic here
-        setInvitedUsers(prev => new Set(prev).add(userId));
+    const handleInvite = async (userAddress) => {
+        if (!account || !signer || !organisationId) {
+            toast.error('Please connect your wallet');
+            return;
+        }
+
+        if (invitedUsers.has(userAddress)) {
+            return; // Already invited
+        }
+
+        setSendingInvite(true);
+        try {
+            // Sign message for authentication
+            const message = 'Canopy invitation verification';
+            const signature = await signer.signMessage(message);
+
+            // Send invitation (pass signature, not message - API will use the message)
+            await sendInvitation(account, signature, organisationId, userAddress, 'user');
+
+            setInvitedUsers(prev => new Set(prev).add(userAddress));
+            toast.success('Invitation sent successfully!', {
+                position: 'top-right',
+                autoClose: 3000,
+            });
+        } catch (error) {
+            console.error('Error sending invitation:', error);
+            toast.error(error.message || 'Failed to send invitation', {
+                position: 'top-right',
+                autoClose: 3000,
+            });
+        } finally {
+            setSendingInvite(false);
+        }
     };
 
     if (!isOpen) return null;
@@ -103,7 +147,7 @@ const AddMemberModal = ({ isOpen, onClose }) => {
                                         type="text"
                                         value={query}
                                         onChange={(e) => setQuery(e.target.value)}
-                                        placeholder="Search by name, address, or email..."
+                                        placeholder="Search by display name or address..."
                                         className="block w-full pl-10 pr-3 py-2.5 bg-black/20 border border-white/10 rounded-lg text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all font-mono"
                                         autoFocus
                                     />
@@ -132,45 +176,52 @@ const AddMemberModal = ({ isOpen, onClose }) => {
                                     </div>
                                 ) : (
                                     <div className="flex flex-col gap-1 mt-2">
-                                        {results.map((user) => (
-                                            <motion.div
-                                                layout
-                                                initial={{ opacity: 0, x: -10 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                key={user.id}
-                                                className="p-3 rounded-lg hover:bg-white/5 border border-transparent hover:border-white/5 transition-all flex items-center gap-4 group"
-                                            >
-                                                {/* Avatar */}
-                                                <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden flex-none border border-white/10">
-                                                    <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-                                                </div>
-
-                                                {/* Details */}
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2">
-                                                        <h4 className="text-sm font-medium text-gray-200 group-hover:text-emerald-400 transition-colors truncate">{user.name}</h4>
-                                                        {invitedUsers.has(user.id) && <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-1.5 rounded border border-emerald-500/20">INVITED</span>}
-                                                    </div>
-                                                    <div className="flex items-center gap-2 mt-0.5">
-                                                        <span className="text-xs text-gray-500 font-mono truncate max-w-[120px]">{user.address}</span>
-                                                        <span className="text-[10px] text-gray-600">•</span>
-                                                        <span className="text-xs text-gray-500 truncate">{user.email}</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Action */}
-                                                <button
-                                                    onClick={() => handleInvite(user.id)}
-                                                    disabled={invitedUsers.has(user.id)}
-                                                    className={`px-3 py-1.5 text-xs font-mono font-medium rounded transition-all ${invitedUsers.has(user.id)
-                                                            ? 'bg-transparent text-gray-500 cursor-not-allowed'
-                                                            : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/30'
-                                                        }`}
+                                        {results.map((user) => {
+                                            const isInvited = invitedUsers.has(user.address);
+                                            return (
+                                                <motion.div
+                                                    layout
+                                                    initial={{ opacity: 0, x: -10 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    key={user.address}
+                                                    className="p-3 rounded-lg hover:bg-white/5 border border-transparent hover:border-white/5 transition-all flex items-center gap-4 group"
                                                 >
-                                                    {invitedUsers.has(user.id) ? 'SENT' : 'ADD +'}
-                                                </button>
-                                            </motion.div>
-                                        ))}
+                                                    {/* Avatar */}
+                                                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500/20 to-purple-500/20 overflow-hidden flex-none border border-white/10 flex items-center justify-center">
+                                                        <span className="text-xs font-mono text-emerald-400">
+                                                            {user.displayName ? user.displayName.charAt(0).toUpperCase() : user.address.slice(2, 3).toUpperCase()}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Details */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="text-sm font-medium text-gray-200 group-hover:text-emerald-400 transition-colors truncate">
+                                                                {user.displayName || 'Anonymous User'}
+                                                            </h4>
+                                                            {isInvited && <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-1.5 rounded border border-emerald-500/20">INVITED</span>}
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                            <span className="text-xs text-gray-500 font-mono truncate max-w-[200px]">
+                                                                {user.address}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Action */}
+                                                    <button
+                                                        onClick={() => handleInvite(user.address)}
+                                                        disabled={isInvited || sendingInvite}
+                                                        className={`px-3 py-1.5 text-xs font-mono font-medium rounded transition-all ${isInvited || sendingInvite
+                                                                ? 'bg-transparent text-gray-500 cursor-not-allowed'
+                                                                : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500/30'
+                                                            }`}
+                                                    >
+                                                        {isInvited ? 'SENT' : sendingInvite ? 'SENDING...' : 'ADD +'}
+                                                    </button>
+                                                </motion.div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>

@@ -5,8 +5,8 @@ import { getForests } from '../../ApiFactory/ForestAPI';
 const KPICard = ({ title, value, unit, change, trend = 'neutral' }) => (
     <MagicCard
         enableStars={false}
-        enableTilt={true}
-        enableMagnetism={true}
+        enableTilt={false}
+        enableMagnetism={false}
         className="group !p-5 !bg-[#11141a]/80"
     >
         <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-emerald-500/0 via-emerald-500/50 to-emerald-500/0 opacity-50 group-hover:opacity-100 transition-opacity"></div>
@@ -39,26 +39,26 @@ const KPIGrid = () => {
             try {
                 setLoading(true);
                 const response = await getForests();
-                
+
                 if (response.success && response.data && response.data.forests) {
                     const forests = response.data.forests;
-                    
+
                     // Calculate KPIs
                     const forestsCount = forests.length;
-                    
+
                     // Calculate total area in hectares (area is in square meters)
                     const totalAreaSqMeters = forests.reduce((sum, f) => sum + (Number(f.area) || 0), 0);
                     const verifiedArea = totalAreaSqMeters / 10000; // Convert to hectares
-                    
+
                     // Calculate total carbon credits
                     const carbonIssued = forests.reduce((sum, f) => sum + (Number(f.totalCarbonCredits) || 0), 0);
-                    
+
                     // Calculate average confidence (if available)
                     const forestsWithConfidence = forests.filter(f => f.lastConfidence);
                     const avgConfidence = forestsWithConfidence.length > 0
                         ? forestsWithConfidence.reduce((sum, f) => sum + parseFloat(f.lastConfidence || 0), 0) / forestsWithConfidence.length
                         : 0;
-                    
+
                     setKpiData({
                         forestsCount,
                         verifiedArea,
