@@ -11,7 +11,7 @@ import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import * as turf from '@turf/turf';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchOrganisationById } from '../ApiFactory/OrganisationAPI';
-import { createRegistrationSession } from '../ApiFactory/RegistrationSessionAPI';
+import { createRegistrationSession, getActiveRegistrationSession, endRegistrationSession } from '../ApiFactory/RegistrationSessionAPI';
 import { useWebSocket } from '../hooks/useWebSocket';
 
 
@@ -61,12 +61,12 @@ const OrgForestRegister = () => {
     const [orgLoading, setOrgLoading] = useState(false);
     const [sessionId, setSessionId] = useState(null);
     const [isOwner, setIsOwner] = useState(false);
-    
+
     // Determine if current user is owner
     const checkIsOwner = useMemo(() => {
         if (!organisation || !account) return false;
-        return organisation.owner?.toLowerCase() === account.toLowerCase() || 
-               organisation.role === 'owner';
+        return organisation.owner?.toLowerCase() === account.toLowerCase() ||
+            organisation.role === 'owner';
     }, [organisation, account]);
     useEffect(() => {
         if (!orgId) return;
@@ -96,25 +96,56 @@ const OrgForestRegister = () => {
     }, [orgId, account]); // Include both dependencies - account will be null initially, then string
 
     // Create registration session when owner loads page
+    // Create registration session when owner loads page, or fetch for members
     useEffect(() => {
-        if (!orgId || !account || !organisation || !checkIsOwner) return;
-        if (sessionId) return; // Already created
+        if (!orgId || !account || !organisation) return;
+        if (sessionId) return; // Already have session
 
-        const createSession = async () => {
-            try {
-                console.log("Creating registration session for owner");
-                const response = await createRegistrationSession(parseInt(orgId), account);
-                if (response.success && response.session) {
-                    setSessionId(response.session.sessionId);
-                    setIsOwner(true);
-                    console.log("Registration session created:", response.session.sessionId);
+        const handleSession = async () => {
+            if (checkIsOwner) {
+                // For owner: Try to get active session first, else create
+                try {
+                    console.log("Checking for existing active session for owner");
+                    try {
+                        const active = await getActiveRegistrationSession(orgId);
+                        if (active.success && active.session) {
+                            setSessionId(active.session.sessionId);
+                            setIsOwner(true);
+                            console.log("Found existing active session:", active.session.sessionId);
+                            return;
+                        }
+                    } catch (e) {
+                        // ignore, create new
+                    }
+
+                    console.log("Creating new registration session for owner");
+                    const response = await createRegistrationSession(parseInt(orgId), account);
+                    if (response.success && response.session) {
+                        setSessionId(response.session.sessionId);
+                        setIsOwner(true);
+                        console.log("Registration session created:", response.session.sessionId);
+                    }
+                } catch (err) {
+                    console.error("Error managing registration session:", err);
                 }
-            } catch (err) {
-                console.error("Error creating registration session:", err);
+            } else {
+                // For member: Fetch active session
+                try {
+                    console.log("Fetching active session for member");
+                    const response = await getActiveRegistrationSession(orgId);
+                    if (response.success && response.session) {
+                        setSessionId(response.session.sessionId);
+                        console.log("Joined active session:", response.session.sessionId);
+                    } else {
+                        console.log("No active session found for member");
+                    }
+                } catch (err) {
+                    console.error("Error fetching active session:", err);
+                }
             }
         };
 
-        createSession();
+        handleSession();
     }, [orgId, account, organisation, checkIsOwner, sessionId]);
 
     // Initialize WebSocket connection
@@ -144,27 +175,46 @@ const OrgForestRegister = () => {
     // Get voting members from organization and WebSocket
     const votingMembers = useMemo(() => {
         if (!organisation?.members) return [];
-        
-        return organisation.members.map(member => {
+
+        // Identify owner logic
+        const ownerAddress = organisation.owner?.toLowerCase();
+
+        // Ensure owner is always in the list, even if not explicitly in members array (though createOrg logic adds them)
+        // If members array is populated from backend, owner should be there.
+
+        let membersList = [...organisation.members];
+
+        // Safety check: if owner not potentially in list? 
+        // Backend `getOrganisationById` returns all members.
+
+        return membersList.map(member => {
             const vote = votes.get(member.userAddress);
-            const isConnected = wsMembers.some(m => m.address === member.userAddress);
-            
+
+            // Check connection: explicitly in wsMembers OR if it's the current user (self is always connected locally)
+            const isConnected = wsMembers.some(m => m.address === member.userAddress) ||
+                (member.userAddress === account?.toLowerCase());
+
             let status = 'PENDING';
             if (vote) {
                 status = vote.vote === 'approve' ? 'VOTED' : 'REJECTED';
             }
-            
+
             return {
                 id: member.id || member.userAddress,
                 name: member.userAddress?.slice(0, 6) + '...' + member.userAddress?.slice(-4) || 'Unknown',
                 address: member.userAddress,
-                role: member.role === 'owner' ? 'Owner' : 'Member',
+                role: (member.role === 'owner' || member.userAddress === ownerAddress) ? 'Owner' : 'Member',
                 status: status,
                 isConnected: isConnected,
                 avatar: `https://i.pravatar.cc/150?u=${member.userAddress}`
             };
+        }).sort((a, b) => {
+            // Sort owner to top
+            if (a.role === 'Owner') return -1;
+            if (b.role === 'Owner') return 1;
+            return 0;
         });
-    }, [organisation?.members, votes, wsMembers]);
+    }, [organisation?.members, votes, wsMembers, account, organisation?.owner]);
 
     // Check authentication
     useEffect(() => {
@@ -291,29 +341,51 @@ const OrgForestRegister = () => {
         drawRef.current.changeMode(drawRef.current.getMode() === 'draw_polygon' ? 'simple_select' : 'draw_polygon');
     };
 
+    const handleExit = async () => {
+        if (isOwner) {
+            if (window.confirm("Are you sure you want to exit? Since you are the owner, this will END the session for everyone.")) {
+                try {
+                    if (sessionId) {
+                        await endRegistrationSession(sessionId, account);
+                        // Send WebSocket message if possible? WS will disconnect on navigation anyway.
+                        // Backend endSession updates DB state to isActive: false.
+                    }
+                } catch (err) {
+                    console.error("Error ending session:", err);
+                }
+                navigate('/organisation');
+            }
+        } else {
+            // For members, just leave
+            if (window.confirm("Are you sure you want to leave the session?")) {
+                navigate('/organisation');
+            }
+        }
+    };
+
     const handleSubmit = async () => {
         if (!plotData) { return; }
         if (!votingStatus || votingStatus.result !== 'approved') {
             console.log('Voting not complete or not approved yet');
             return;
         }
-        
+
         setIsSubmitting(true);
-        
+
         try {
             // DAO contract voting is now integrated:
             // 1. On-chain proposal is created automatically when room is created
             // 2. On-chain votes are cast automatically when users vote in real-time
             // 3. Proposal ID is available in votingStatus for execution if needed
-            
+
             console.log('Voting approved, proceeding with registration...');
             console.log('Plot data:', plotData);
             console.log('Form data:', formData);
-            
+
             // Simulate registration process
             // In production, this would call the forest registration API
             // which would then interact with the smart contract
-            
+
             setTimeout(() => {
                 setIsSubmitting(false);
                 navigate('/organisation');
@@ -409,7 +481,18 @@ const OrgForestRegister = () => {
                     </div>
 
                     {/* Voting Members Side Panel */}
-                    <div className="bg-[#11141a]/90 backdrop-blur-md border border-white/10 rounded-sm p-5 shadow-lg flex-1 flex flex-col min-h-0 overflow-hidden">
+                    <div className="bg-[#11141a]/90 backdrop-blur-md border border-white/10 rounded-sm p-5 shadow-lg flex-1 flex flex-col min-h-0 overflow-hidden relative">
+                        {/* Exit Button at bottom right specific to this container or global page?
+                            User said "At the bottom right of the page". 
+                            But this layout is a grid. putting it at page bottom right might be outside grid.
+                            Let's interpret "bottom right of the page" (fixed) or "bottom right of the voting panel".
+                            Usually users want it in the workflow panel.
+                            Actually, let's put it fixed at bottom right of screen or bottom of panel.
+                            "Exit where when the owner clicks on the Exit...".
+                            I'll place it in the bottom right of the panel for better UX, or fixed.
+                            Let's try bottom of panel FIRST, but make it distinct.
+                        */}
+
                         <div className="flex justify-between items-center border-b border-white/5 pb-3">
                             <h2 className="text-xs font-mono text-emerald-500 uppercase tracking-wider">DAO Consensus</h2>
                             <div className="flex items-center gap-2">
@@ -422,7 +505,8 @@ const OrgForestRegister = () => {
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto scrollbar-hide py-3 space-y-2">
+                        <div className="flex-1 overflow-y-auto scrollbar-hide py-3 space-y-2 mb-12">
+                            {/* mb-12 to make space for fixed button if inside, or just flow */}
                             {votingMembers.map((member) => (
                                 <div key={member.id} className="flex items-center justify-between p-2 rounded hover:bg-white/5 transition-colors group">
                                     <div className="flex items-center gap-3">
@@ -430,20 +514,25 @@ const OrgForestRegister = () => {
                                             <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
                                             {/* Status Dot */}
                                             <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#11141a] ${member.status === 'VOTED' ? 'bg-emerald-500' :
-                                                member.status === 'REJECTED' ? 'bg-red-500' : 'bg-gray-500'
+                                                member.status === 'REJECTED' ? 'bg-red-500' :
+                                                    member.isConnected ? 'bg-emerald-500' : 'bg-gray-500'
                                                 }`} ></div>
+                                            {/* Logic: Voted green, Rejected red, Connected (but not voted) green/active, else gray */}
                                         </div>
                                         <div>
-                                            <div className="text-sm text-gray-200 font-medium group-hover:text-emerald-400 transition-colors">{member.name}</div>
+                                            <div className="text-sm text-gray-200 font-medium group-hover:text-emerald-400 transition-colors">{member.name} {member.role === 'Owner' && '(Owner)'}</div>
                                             <div className="text-[10px] text-gray-500 font-mono flex items-center gap-1">
                                                 {member.role.toUpperCase()}
                                             </div>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2">
+                                        {/* isConnected indicator redundant if avatar dot exists, but kept for clarity if needed */}
+                                        {/* 
                                         {member.isConnected && (
                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                         )}
+                                        */}
                                         <div className={`text-[10px] font-mono px-2 py-0.5 rounded border ${member.status === 'VOTED' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
                                             member.status === 'REJECTED' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
                                                 'bg-white/5 text-gray-500 border-white/10'
@@ -478,17 +567,16 @@ const OrgForestRegister = () => {
                                 <span>{votingStatus ? `${Math.round((votingStatus.votesCount / votingStatus.totalMembers) * 100)}%` : '0%'}</span>
                             </div>
                             <div className="h-1 bg-white/10 rounded-full overflow-hidden mb-4">
-                                <div 
+                                <div
                                     className={`h-full ${votingStatus?.result === 'approved' ? 'bg-emerald-500' : votingStatus?.result === 'rejected' ? 'bg-red-500' : 'bg-emerald-500'}`}
                                     style={{ width: votingStatus ? `${(votingStatus.votesCount / votingStatus.totalMembers) * 100}%` : '0%' }}
                                 ></div>
                             </div>
                             {votingStatus?.result && (
-                                <div className={`mb-4 p-2 rounded border text-xs font-mono text-center ${
-                                    votingStatus.result === 'approved' 
-                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
-                                        : 'bg-red-500/10 text-red-400 border-red-500/30'
-                                }`}>
+                                <div className={`mb-4 p-2 rounded border text-xs font-mono text-center ${votingStatus.result === 'approved'
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                    : 'bg-red-500/10 text-red-400 border-red-500/30'
+                                    }`}>
                                     VOTING {votingStatus.result.toUpperCase()} - {votingStatus.approveVotes} approve, {votingStatus.rejectVotes} reject
                                 </div>
                             )}
@@ -496,14 +584,33 @@ const OrgForestRegister = () => {
                             <button
                                 onClick={handleSubmit}
                                 disabled={!plotData || isSubmitting}
-                                className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-medium text-xs font-mono rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider"
+                                className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-medium text-xs font-mono rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider mb-2"
                             >
                                 {isSubmitting ? 'INITIATING...' : 'SUBMIT PROPOSAL'}
                             </button>
                         </div>
+
+                        {/* Exit Button - Bottom Right of the panel/container */}
+                        <div className="absolute bottom-3 right-3">
+                            {/* Or better, render it outside the flow or fixed. 
+                                User asked "At the bottom right of the page".
+                                I will put it fixed z-index at page bottom right.
+                             */}
+                        </div>
                     </div>
 
                 </motion.div>
+
+                {/* Exit Button Fixed Position */}
+                <div className="fixed bottom-6 right-6 z-50">
+                    <button
+                        onClick={handleExit}
+                        className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white font-mono text-xs font-bold rounded shadow-lg transition-colors uppercase tracking-wider flex items-center gap-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        {isOwner ? 'END SESSION' : 'EXIT SESSION'}
+                    </button>
+                </div>
             </main>
         </div>
     );

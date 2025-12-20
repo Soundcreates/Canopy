@@ -7,11 +7,19 @@ import VerificationTimeline from '../components/dashboard/VerificationTimeline';
 import SidePanel from '../components/dashboard/SidePanel';
 import { MagicBentoGrid } from '../components/dashboard/MagicBento';
 
+import { motion } from 'framer-motion';
+
 const Dashboard2 = () => {
     const navigate = useNavigate();
 
     return (
-        <div className="h-screen w-full bg-[#0b0f14] text-gray-300 font-sans selection:bg-emerald-500/30 flex flex-col overflow-hidden">
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="h-screen w-full bg-[#0b0f14] text-gray-300 font-sans selection:bg-emerald-500/30 flex flex-col overflow-hidden"
+        >
             {/* Top Navigation - Fixed Height */}
             <div className="flex-none z-50">
                 <TopNav />
@@ -52,7 +60,7 @@ const Dashboard2 = () => {
 
                 </MagicBentoGrid>
             </div>
-        </div>
+        </motion.div>
     );
 };
 

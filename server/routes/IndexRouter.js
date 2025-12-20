@@ -10,6 +10,7 @@ const registrationSessionRouter = require("./RegistrationSessionRouter");
 const invitationRouter = require("./InvitationRouter");
 const notificationRouter = require("./NotificationRouter");
 const userRouter = require("./UserRouter");
+const tokenRouter = require("./TokenRouter");
 
 // Auth routes
 router.use("/auth", authRouter);
@@ -40,5 +41,8 @@ router.use("/notifications", notificationRouter);
 
 // User routes
 router.use("/users", userRouter);
+
+// Token routes
+router.use("/token", tokenRouter);
 
 module.exports = router;

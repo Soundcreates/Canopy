@@ -8,6 +8,7 @@ module.exports = {
     .RegistrationsSessionsModel,
   InvitationModel: require("./InvitationModel").InvitationModel,
   NotificationModel: require("./NotificationModel").NotificationModel,
+  TokenBalanceHistoryModel: require("./TokenBalanceHistoryModel").TokenBalanceHistoryModel,
 };
 
 //this file is used to export the schemas/models so the drizzle config file can read and use them

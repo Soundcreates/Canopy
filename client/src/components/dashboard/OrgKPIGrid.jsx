@@ -24,17 +24,17 @@ const KPICard = ({ title, value, unit, change, trend = 'neutral' }) => (
     </MagicCard>
 );
 
-const OrgKPIGrid = () => {
-    // Mock data for Organization KPIs
-    const kpiData = {
-        totalMembers: 3,
-        totalForests: 19,
-        totalArea: 6070.7,
-        totalCarbon: 173500
+const OrgKPIGrid = ({ organisation, stats }) => {
+    // Use props if provided, otherwise default/calculate
+    const kpiData = stats || {
+        totalMembers: organisation?.members?.length || 0,
+        totalForests: organisation?.stats?.totalForests || 0,
+        totalArea: organisation?.stats?.totalArea || 0,
+        totalCarbon: organisation?.stats?.totalCarbon || 0
     };
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <KPICard
                 title="Total Members"
                 value={kpiData.totalMembers}
@@ -52,6 +52,13 @@ const OrgKPIGrid = () => {
                 title="Total Forests"
                 value={kpiData.totalForests}
                 change="Across all members"
+                trend="up"
+            />
+            <KPICard
+                title="Tokens Raised"
+                value={kpiData.tokensRaised ? kpiData.tokensRaised.toLocaleString() : '0'}
+                unit="CTK"
+                change="Total Capital"
                 trend="up"
             />
             <KPICard

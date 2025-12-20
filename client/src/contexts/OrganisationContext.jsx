@@ -61,7 +61,7 @@ export const OrganisationProvider = ({ children }) => {
         throw new Error(data.error || data.message || `HTTP ${response.status}: Request failed`);
       }
       return data;
-    } 
+    }
     // For write operations (POST, PUT, DELETE), require signature
     else if (requiresSignature || method !== 'GET') {
       if (!signer) {

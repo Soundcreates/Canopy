@@ -8,7 +8,7 @@ import { ethers } from 'ethers';
 import CTKTokenData from '../../contractData/CTKToken.json';
 import { toast } from 'react-toastify';
 
-const INVITATION_COST = 20; // 20 tokens
+
 
 const NotificationDropdown = () => {
     const { account, signer, provider } = useWallet();
@@ -74,61 +74,6 @@ const NotificationDropdown = () => {
         }
     };
 
-    const checkTokenBalance = async () => {
-        if (!provider || !account) return false;
-
-        try {
-            const tokenContract = new ethers.Contract(
-                CTKTokenData.address,
-                CTKTokenData.abi,
-                provider
-            );
-            const balance = await tokenContract.balanceOf(account);
-            const decimals = await tokenContract.decimals();
-            const balanceFormatted = ethers.formatUnits(balance, decimals);
-            return parseFloat(balanceFormatted) >= INVITATION_COST;
-        } catch (error) {
-            console.error('Error checking token balance:', error);
-            return false;
-        }
-    };
-
-    const payTokens = async () => {
-        if (!signer || !account) {
-            throw new Error('Wallet not connected');
-        }
-
-        try {
-            const tokenContract = new ethers.Contract(
-                CTKTokenData.address,
-                CTKTokenData.abi,
-                signer
-            );
-
-            // Check balance first
-            const balance = await tokenContract.balanceOf(account);
-            const decimals = await tokenContract.decimals();
-            const balanceFormatted = ethers.formatUnits(balance, decimals);
-
-            if (parseFloat(balanceFormatted) < INVITATION_COST) {
-                throw new Error(`Insufficient tokens. You need ${INVITATION_COST} tokens but only have ${parseFloat(balanceFormatted).toFixed(2)}`);
-            }
-
-            // Transfer tokens to a burn address or treasury (using zero address as burn for now)
-            // In production, you might want to use a treasury address
-            const burnAddress = '0x0000000000000000000000000000000000000000';
-            const amount = ethers.parseUnits(INVITATION_COST.toString(), decimals);
-
-            const tx = await tokenContract.transfer(burnAddress, amount);
-            await tx.wait();
-
-            return true;
-        } catch (error) {
-            console.error('Error paying tokens:', error);
-            throw error;
-        }
-    };
-
     const handleAcceptInvitation = async (notification) => {
         if (!account || !signer) {
             toast.error('Please connect your wallet');
@@ -139,25 +84,17 @@ const NotificationDropdown = () => {
         setProcessingId(notification.id);
 
         try {
-            // Check token balance
-            const hasEnoughTokens = await checkTokenBalance();
-            if (!hasEnoughTokens) {
-                toast.error(`You need ${INVITATION_COST} tokens to accept/reject invitations`);
-                return;
-            }
-
-            // Pay tokens
-            await payTokens();
-
-            // Sign and accept invitation
+            // Sign and accept invitation - No token payment needed
             const message = 'Canopy invitation acceptance';
             const signature = await signer.signMessage(message);
             await acceptInvitation(account, signature, notification.relatedEntityId);
 
-            // Mark notification as read
-            await handleMarkRead(notification.id);
-
             toast.success('Invitation accepted!', { position: 'top-right' });
+
+            // Navigate to the organization analytics page
+            // Assuming relatedEntityId is the organization ID
+            navigate(`/organisation/${notification.relatedEntityId}/analytics`);
+
             await loadNotifications();
         } catch (error) {
             console.error('Error accepting invitation:', error);
@@ -177,23 +114,12 @@ const NotificationDropdown = () => {
         setProcessingId(notification.id);
 
         try {
-            // Check token balance
-            const hasEnoughTokens = await checkTokenBalance();
-            if (!hasEnoughTokens) {
-                toast.error(`You need ${INVITATION_COST} tokens to accept/reject invitations`);
-                return;
-            }
-
-            // Pay tokens
-            await payTokens();
-
-            // Sign and reject invitation
+            // Sign and reject invitation - No token payment needed
             const message = 'Canopy invitation rejection';
             const signature = await signer.signMessage(message);
             await rejectInvitation(account, signature, notification.relatedEntityId);
 
-            // Mark notification as read
-            await handleMarkRead(notification.id);
+
 
             toast.success('Invitation rejected', { position: 'top-right' });
             await loadNotifications();
@@ -286,9 +212,8 @@ const NotificationDropdown = () => {
                                         {notifications.map((notification) => (
                                             <div
                                                 key={notification.id}
-                                                className={`p-4 hover:bg-white/5 transition-colors ${
-                                                    !notification.read ? 'bg-emerald-500/5' : ''
-                                                }`}
+                                                className={`p-4 hover:bg-white/5 transition-colors ${!notification.read ? 'bg-emerald-500/5' : ''
+                                                    }`}
                                             >
                                                 <div className="flex items-start gap-3">
                                                     <div className="w-2 h-2 rounded-full bg-emerald-500 mt-2 flex-none"></div>
@@ -310,14 +235,14 @@ const NotificationDropdown = () => {
                                                                         disabled={processingId === notification.id}
                                                                         className="text-[10px] px-2 py-1 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 rounded border border-emerald-500/20 font-mono disabled:opacity-50"
                                                                     >
-                                                                        {processingId === notification.id ? 'Processing...' : `Accept (${INVITATION_COST} tokens)`}
+                                                                        {processingId === notification.id ? 'Processing...' : 'Accept'}
                                                                     </button>
                                                                     <button
                                                                         onClick={() => handleRejectInvitation(notification)}
                                                                         disabled={processingId === notification.id}
                                                                         className="text-[10px] px-2 py-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded border border-red-500/20 font-mono disabled:opacity-50"
                                                                     >
-                                                                        {processingId === notification.id ? 'Processing...' : `Reject (${INVITATION_COST} tokens)`}
+                                                                        {processingId === notification.id ? 'Processing...' : 'Reject'}
                                                                     </button>
                                                                 </>
                                                             )}
