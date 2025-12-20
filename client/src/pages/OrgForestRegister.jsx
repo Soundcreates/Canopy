@@ -79,7 +79,7 @@ const OrgForestRegister = () => {
                 console.log("Organisation fetched successfully:", response);
                 // Handle response structure - could be { organisation, members } or just the organisation object
                 if (response.organisation) {
-                    setOrganisation(response.organisation);
+                    setOrganisation({ ...response.organisation, members: response.members || [] });
                 } else {
                     setOrganisation(response);
                 }
@@ -156,6 +156,8 @@ const OrgForestRegister = () => {
         members: wsMembers,
         votingStatus,
         sendPlotUpdate,
+        sendMapUpdate,
+        mapState,
         submitVote
     } = useWebSocket(sessionId, parseInt(orgId), account, isOwner);
 
@@ -172,6 +174,41 @@ const OrgForestRegister = () => {
         }
     }, [wsPlotData, isOwner]);
 
+    // Broadcast Map State (Owner) & Sync Map State (Member)
+    useEffect(() => {
+        if (!mapRef.current) return;
+
+        const map = mapRef.current;
+
+        if (isOwner) {
+            // Owner broadcasts movements
+            const handleMoveEnd = () => {
+                if (sendMapUpdate) {
+                    sendMapUpdate({
+                        center: map.getCenter(),
+                        zoom: map.getZoom(),
+                        pitch: map.getPitch(),
+                        bearing: map.getBearing()
+                    });
+                }
+            };
+
+            map.on('moveend', handleMoveEnd);
+            return () => map.off('moveend', handleMoveEnd);
+        } else {
+            // Member syncs
+            if (mapState) {
+                map.flyTo({
+                    center: mapState.center,
+                    zoom: mapState.zoom,
+                    pitch: mapState.pitch,
+                    bearing: mapState.bearing,
+                    essential: true
+                });
+            }
+        }
+    }, [isOwner, sendMapUpdate, mapState]);
+
     // Get voting members from organization and WebSocket
     const votingMembers = useMemo(() => {
         if (!organisation?.members) return [];
@@ -187,10 +224,16 @@ const OrgForestRegister = () => {
         // Safety check: if owner not potentially in list? 
         // Backend `getOrganisationById` returns all members.
 
-        return membersList.map(member => {
+        return membersList.filter(member => {
+            // Filter to show only connected members (User Request: "other user haven't joined... still showing")
+            // Also keep self
+            const isConnected = wsMembers.some(m => m.address === member.userAddress) ||
+                (member.userAddress === account?.toLowerCase());
+            return isConnected;
+        }).map(member => {
             const vote = votes.get(member.userAddress);
 
-            // Check connection: explicitly in wsMembers OR if it's the current user (self is always connected locally)
+            // Check connection again (it's true due to filter but good for logic flow)
             const isConnected = wsMembers.some(m => m.address === member.userAddress) ||
                 (member.userAddress === account?.toLowerCase());
 
@@ -338,7 +381,10 @@ const OrgForestRegister = () => {
 
     const toggleDrawing = () => {
         if (!drawRef.current) return;
-        drawRef.current.changeMode(drawRef.current.getMode() === 'draw_polygon' ? 'simple_select' : 'draw_polygon');
+        const currentMode = drawRef.current.getMode();
+        const newMode = currentMode === 'draw_polygon' ? 'simple_select' : 'draw_polygon';
+        drawRef.current.changeMode(newMode);
+        setIsDrawing(newMode === 'draw_polygon');
     };
 
     const handleExit = async () => {
@@ -445,7 +491,13 @@ const OrgForestRegister = () => {
                             <span className="text-[10px] font-mono text-emerald-500">LIVE SATELLITE FEED</span>
                         </div>
                         <div className="absolute top-4 right-14 flex flex-col gap-2 z-10">
-                            <button onClick={toggleDrawing} className={`px-4 py-2 text-xs font-mono uppercase tracking-wider rounded-sm backdrop-blur-md border transition-all ${isDrawing ? 'bg-emerald-600/30 border-emerald-500/50 text-emerald-400' : 'bg-black/50 border-white/10 text-gray-300'}`}>
+                            <button
+                                onClick={toggleDrawing}
+                                className={`px-4 py-2 text-xs font-mono uppercase tracking-wider rounded-sm backdrop-blur-md border transition-all shadow-lg ${isDrawing
+                                    ? 'bg-emerald-500 border-emerald-400 text-black shadow-emerald-500/20 font-bold'
+                                    : 'bg-black/50 border-white/10 text-gray-300 hover:bg-black/70'
+                                    }`}
+                            >
                                 {isDrawing ? 'Stop Drawing' : 'Draw Plot'}
                             </button>
                         </div>
@@ -539,7 +591,7 @@ const OrgForestRegister = () => {
                                             }`}>
                                             {member.status}
                                         </div>
-                                        {!isOwner && member.status === 'PENDING' && member.role !== 'Owner' && (
+                                        {member.address?.toLowerCase() === account?.toLowerCase() && member.status === 'PENDING' && (
                                             <div className="flex gap-1">
                                                 <button
                                                     onClick={() => submitVote('approve')}
@@ -563,15 +615,24 @@ const OrgForestRegister = () => {
                         <div className="pt-3 border-t border-white/5">
                             {/* Progress Bar */}
                             <div className="flex justify-between text-[10px] text-gray-500 mb-1 font-mono">
-                                <span>CONSENSUS REQUIRED</span>
-                                <span>{votingStatus ? `${Math.round((votingStatus.votesCount / votingStatus.totalMembers) * 100)}%` : '0%'}</span>
+                                <span>CONSENSUS PROGRESS</span>
+                                <div className="flex gap-4">
+                                    <span className="text-emerald-500">{votingStatus ? Math.round((votingStatus.approveVotes / votingStatus.totalMembers) * 100) : 0}% APPROVED</span>
+                                    <span className="text-red-500">{votingStatus ? Math.round((votingStatus.rejectVotes / votingStatus.totalMembers) * 100) : 0}% REJECTED</span>
+                                </div>
                             </div>
-                            <div className="h-1 bg-white/10 rounded-full overflow-hidden mb-4">
+                            <div className="h-2 bg-gray-800 rounded-full overflow-hidden flex relative mb-4">
                                 <div
-                                    className={`h-full ${votingStatus?.result === 'approved' ? 'bg-emerald-500' : votingStatus?.result === 'rejected' ? 'bg-red-500' : 'bg-emerald-500'}`}
-                                    style={{ width: votingStatus ? `${(votingStatus.votesCount / votingStatus.totalMembers) * 100}%` : '0%' }}
-                                ></div>
+                                    className="h-full bg-emerald-500 transition-all duration-500"
+                                    style={{ width: votingStatus ? `${(votingStatus.approveVotes / votingStatus.totalMembers) * 100}%` : '0%' }}
+                                />
+                                <div className="flex-1 bg-transparent" />
+                                <div
+                                    className="h-full bg-red-500 transition-all duration-500"
+                                    style={{ width: votingStatus ? `${(votingStatus.rejectVotes / votingStatus.totalMembers) * 100}%` : '0%' }}
+                                />
                             </div>
+
                             {votingStatus?.result && (
                                 <div className={`mb-4 p-2 rounded border text-xs font-mono text-center ${votingStatus.result === 'approved'
                                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
