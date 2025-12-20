@@ -1,26 +1,30 @@
-import { showToast } from '../utils/toast';
 import { getApiBaseUrl } from '../utils/apiConfig';
+import { 
+    getCachedData, 
+    setCachedData, 
+    removeCachedData,
+    getForestsCacheKey,
+    getForestCacheKey,
+    getNDVIDataCacheKey,
+    getNFTDataCacheKey
+} from '../utils/cache';
 
 const API_BASE_URL = getApiBaseUrl();
 console.log("API Base URL: ", API_BASE_URL);
 
 export const registerForest = async (area, geoHash, account) => {
     console.log('Registering forest...from frontend');
-    showToast.info('Starting forest registration...');
     console.log("Checking for account: ", account);
     if (!account) {
         console.log("Wallet not connected");
-        showToast.error('Wallet not connected. Please connect your wallet first.');
         throw new Error('Wallet not connected');
     }
     console.log("Fetching stored auth (sig and msg) from localstorage");
-    showToast.info('Checking authentication...');
     // Fetching the signature and message from localstorage
     const storedAuth = localStorage.getItem(`canopy_auth_${account.toLowerCase()}`);
     console.log("Stored auth: ", storedAuth);
     if (!storedAuth) {
         console.log("Authentication not found. Please sign in first.");
-        showToast.error('Authentication not found. Please sign in first.');
         throw new Error('Authentication not found. Please sign in first.');
     }
 
@@ -29,7 +33,6 @@ export const registerForest = async (area, geoHash, account) => {
         authData = JSON.parse(storedAuth);
     } catch (parseError) {
         console.error('Error parsing stored auth data:', parseError);
-        showToast.error('Invalid authentication data. Please sign in again.');
         throw new Error('Invalid authentication data. Please sign in again by connecting your wallet and signing the message on the landing page.');
     }
 
@@ -38,7 +41,6 @@ export const registerForest = async (area, geoHash, account) => {
         console.error('Missing authentication fields. Stored auth data:', authData);
         // Clear invalid auth data
         localStorage.removeItem(`canopy_auth_${account.toLowerCase()}`);
-        showToast.error('Authentication data is incomplete. Please sign in again.');
         throw new Error('Authentication data is incomplete. Please sign in again by connecting your wallet and signing the message on the landing page.');
     }
 
@@ -51,21 +53,18 @@ export const registerForest = async (area, geoHash, account) => {
     // Validate signature format: must start with '0x' and be hex
     if (!signature.startsWith('0x')) {
         console.error('Invalid signature format - does not start with 0x:', signature);
-        showToast.error('Invalid signature format. Please sign in again.');
         throw new Error('Invalid signature format. Please sign in again.');
     }
 
     // Check signature length (should be 132 chars: 0x + 130 hex chars)
     if (signature.length < 130) {
         console.error('Invalid signature format - too short:', signature.length);
-        showToast.error('Invalid signature format. Please sign in again.');
         throw new Error('Invalid signature format. Please sign in again.');
     }
 
     // Validate signature is hex string
     if (!/^0x[a-fA-F0-9]+$/.test(signature)) {
         console.error('Invalid signature format - not a valid hex string:', signature);
-        showToast.error('Invalid signature format. Please sign in again.');
         throw new Error('Invalid signature format. Please sign in again.');
     }
 
@@ -84,7 +83,6 @@ export const registerForest = async (area, geoHash, account) => {
 
     try {
         console.log("Sending request to register forest");
-        showToast.info('Sending registration request to server...');
 
         // Format Authorization header: address:message:signature
         // Note: message may contain special characters, so we ensure proper encoding
@@ -112,19 +110,22 @@ export const registerForest = async (area, geoHash, account) => {
             const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
             console.error("Error response:", errorData);
             const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}: Request failed`;
-            showToast.error(`Registration failed: ${errorMessage}`);
             throw new Error(errorMessage);
         }
 
         console.log("Response is ok");
         const data = await response.json();
-        showToast.success(`Forest registered successfully! Forest ID: ${data.forest?.[0]?.forestId || 'N/A'}`);
+        
+        // Invalidate forests cache when a new forest is registered
+        if (account) {
+            const cacheKey = getForestsCacheKey(account);
+            removeCachedData(cacheKey);
+            console.log("Forests cache invalidated after registration");
+        }
+        
         return data;
     } catch (error) {
         console.error('Error registering forest from frontend:', error);
-        if (!error.message.includes('Registration failed')) {
-            showToast.error(`Registration error: ${error.message}`);
-        }
         throw error;
     }
 };
@@ -139,7 +140,6 @@ export const requestNDVI = async (
     options = {}
 ) => {
     console.log("ForestAPI: Starting NDVI computation request");
-    showToast.info(`Starting NDVI computation for Forest ${forest_id}...`);
     console.log("ForestAPI: Forest ID:", forest_id);
     console.log("ForestAPI: Coordinates:", { min_lon, max_lon, min_lat, max_lat });
 
@@ -147,20 +147,17 @@ export const requestNDVI = async (
     if (!forest_id || min_lon === undefined || max_lon === undefined || 
         min_lat === undefined || max_lat === undefined) {
         console.log("ForestAPI: Error - Missing required fields for NDVI request");
-        showToast.error('Missing required fields for NDVI request');
         throw new Error('forest_id, min_lon, max_lon, min_lat, and max_lat are required');
     }
 
     // Validate coordinates
     if (min_lon >= max_lon) {
         console.log("ForestAPI: Error - Invalid longitude range");
-        showToast.error(`Invalid longitude range: min_lon must be less than max_lon`);
         throw new Error(`min_lon (${min_lon}) must be less than max_lon (${max_lon})`);
     }
 
     if (min_lat >= max_lat) {
         console.log("ForestAPI: Error - Invalid latitude range");
-        showToast.error(`Invalid latitude range: min_lat must be less than max_lat`);
         throw new Error(`min_lat (${min_lat}) must be less than max_lat (${max_lat})`);
     }
 
@@ -196,13 +193,11 @@ export const requestNDVI = async (
         if (!response.ok) {
             console.log("ForestAPI: NDVI computation failed:", data.error || data.message);
             const errorMessage = data.error || data.message || `HTTP ${response.status}: NDVI computation failed`;
-            showToast.error(`NDVI computation failed: ${errorMessage}`);
             throw new Error(errorMessage);
         }
 
         console.log("ForestAPI: NDVI computation completed successfully!");
         console.log("ForestAPI: NDVI value:", data.ndvi);
-        showToast.success(`NDVI computed successfully: ${data.ndvi || 'N/A'}`);
         console.log("ForestAPI: Confidence:", data.confidence);
         return data;
     } catch (error) {
@@ -229,7 +224,6 @@ export const startNDVIMonitoring = (
     onError = null
 ) => {
     console.log("ForestAPI: Starting NDVI monitoring for forest ID:", forest_id);
-    showToast.info(`Starting 3-hour NDVI monitoring for Forest ${forest_id}...`);
     console.log("ForestAPI: Monitoring interval: 3 hours (10800000 ms)");
 
     const INTERVAL_MS = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
@@ -271,7 +265,6 @@ export const startNDVIMonitoring = (
     // Return function to stop monitoring
     return () => {
         console.log("ForestAPI: Stopping NDVI monitoring");
-        showToast.info(`Stopped NDVI monitoring for Forest ${forest_id}`);
         clearInterval(intervalId);
     };
 };
@@ -282,13 +275,23 @@ export const startNDVIMonitoring = (
  * @param {number} forest_id - Forest ID
  * @returns {Promise<Object>} NDVI data from the database
  */
-export const getNDVIData = async (forest_id) => {
+export const getNDVIData = async (forest_id, useCache = true) => {
     console.log("ForestAPI: Fetching NDVI data for forest ID:", forest_id);
     
     if (!forest_id) {
         console.log("ForestAPI: Error - Forest ID is required");
-        showToast.error('Forest ID is required');
         throw new Error('Forest ID is required');
+    }
+
+    const cacheKey = getNDVIDataCacheKey(forest_id);
+    
+    // Try to get from cache first
+    if (useCache) {
+        const cachedData = getCachedData(cacheKey);
+        if (cachedData) {
+            console.log("NDVI data loaded from cache");
+            return cachedData;
+        }
     }
 
     try {
@@ -363,12 +366,18 @@ export const getNDVIData = async (forest_id) => {
         }
 
         console.log("ForestAPI: NDVI data retrieved successfully");
-        return {
+        const ndviData = {
             forestId: forest.forestId,
             lastNDVI: forest.lastNDVI,
             lastVerificationDate: forest.lastVerificationDate,
             forest: forest
         };
+        
+        // Cache the NDVI data
+        setCachedData(cacheKey, ndviData);
+        console.log("NDVI data cached for future use");
+        
+        return ndviData;
     } catch (error) {
         console.log("ForestAPI: Error fetching NDVI data:", error);
         throw error;
@@ -380,7 +389,7 @@ export const getNDVIData = async (forest_id) => {
  * @param {Object} forest - Forest object with latestTokenId and latestMetadataUri
  * @returns {Promise<Object>} NFT data including metadata from IPFS and contract data
  */
-export const getForestNFTData = async (forest) => {
+export const getForestNFTData = async (forest, useCache = true) => {
     console.log("ForestAPI: Fetching NFT data for forest:", forest.forestId);
     
     if (!forest) {
@@ -391,6 +400,17 @@ export const getForestNFTData = async (forest) => {
     if (!forest.latestTokenId) {
         console.log("ForestAPI: No token ID found for forest:", forest.forestId);
         return null; // No NFT minted yet
+    }
+
+    const cacheKey = getNFTDataCacheKey(forest.forestId);
+    
+    // Try to get from cache first
+    if (useCache) {
+        const cachedData = getCachedData(cacheKey);
+        if (cachedData !== null) {
+            console.log("NFT data loaded from cache");
+            return cachedData;
+        }
     }
 
     try {
@@ -432,7 +452,7 @@ export const getForestNFTData = async (forest) => {
             }
         }
 
-        return {
+        const nftData = {
             tokenId: forest.latestTokenId,
             forestId: forest.forestId,
             metadataUri: forest.latestMetadataUri,
@@ -448,13 +468,19 @@ export const getForestNFTData = async (forest) => {
             txHash: forest.txHash,
             isActive: forest.isActive
         };
+        
+        // Cache the NFT data
+        setCachedData(cacheKey, nftData);
+        console.log("NFT data cached for future use");
+        
+        return nftData;
     } catch (error) {
         console.log("ForestAPI: Error fetching NFT data:", error);
         throw error;
     }
 };
 
-export const getForests = async () => {
+export const getForests = async (useCache = true) => {
     console.log("Getting forests");
     try {
         // Get account from localStorage auth data
@@ -482,15 +508,25 @@ export const getForests = async () => {
         console.log("Checking for account: ", account);
         if (!account) {
             console.log("Wallet not connected");
-            showToast.error('Wallet not connected. Please sign in first.');
             throw new Error('Wallet not connected. Please sign in first.');
         }
+        
+        const cacheKey = getForestsCacheKey(account);
+        
+        // Try to get from cache first
+        if (useCache) {
+            const cachedData = getCachedData(cacheKey);
+            if (cachedData) {
+                console.log("Forests loaded from cache");
+                return { success: true, data: cachedData, fromCache: true };
+            }
+        }
+        
         console.log("Fetching stored auth (sig and msg) from localstorage");
         const storedAuth = localStorage.getItem(`canopy_auth_${account.toLowerCase()}`);
         console.log("Stored auth: ", storedAuth);
         if (!storedAuth) {
             console.log("Authentication not found. Please sign in first.");
-            showToast.error('Authentication not found. Please sign in first.');
             throw new Error('Authentication not found. Please sign in first.');
         }
 
@@ -501,13 +537,11 @@ export const getForests = async () => {
             authData = JSON.parse(storedAuth);
         } catch (parseError) {
             console.error('Error parsing stored auth data:', parseError);
-            showToast.error('Invalid authentication data. Please sign in again.');
             throw new Error('Invalid authentication data. Please sign in again by connecting your wallet and signing the message on the landing page.');
         }
 
         if (!authData.signature || !authData.message) {
             console.error('Missing authentication fields. Stored auth data:', authData);
-            showToast.error('Authentication data is incomplete. Please sign in again.');
             throw new Error('Authentication data is incomplete. Please sign in again by connecting your wallet and signing the message on the landing page.');
         }
         
@@ -521,6 +555,7 @@ export const getForests = async () => {
         const authHeader = `Bearer ${address}:${message}:${signature}`;
         console.log("Authorization header: ", authHeader);
 
+        console.log("Fetching forests from API");
         const response = await fetch(`${API_BASE_URL}/api/forests/getForests`, {
             method: 'GET',
             headers: {
@@ -535,7 +570,6 @@ export const getForests = async () => {
             const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
             console.error("Error response:", errorData);
             const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}: Request failed`;
-            showToast.error(`Failed to fetch forests: ${errorMessage}`);
             throw new Error(errorMessage);
 
         }
@@ -545,16 +579,14 @@ export const getForests = async () => {
         console.log("ForestAPI: Data type:", typeof data);
         console.log("ForestAPI: Data.forests:", data.forests);
         console.log("ForestAPI: Is data.forests an array?", Array.isArray(data.forests));
-        const forestCount = data.forests?.length || 0;
-        if (forestCount > 0) {
-            showToast.success(`Loaded ${forestCount} forest${forestCount > 1 ? 's' : ''} successfully`);
-        }
-        return {success: true, data: data};
+        
+        // Cache the forests data
+        setCachedData(cacheKey, data);
+        console.log("Forests data cached for future use");
+        
+        return {success: true, data: data, fromCache: false};
     } catch (error) {
         console.error('Error getting forests:', error);
-        if (!error.message.includes('Failed to fetch forests')) {
-            showToast.error(`Error fetching forests: ${error.message}`);
-        }
         throw error;
     }
 }

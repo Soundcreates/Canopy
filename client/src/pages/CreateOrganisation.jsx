@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import TopNav from '../components/dashboard/TopNav';
 import { MagicCard } from '../components/dashboard/MagicBento';
 import { motion } from 'framer-motion';
-import { toast } from 'react-toastify';
 import { useOrganisation } from '../contexts/OrganisationContext';
 import { useWallet } from '../contexts/WalletContext';
 
@@ -35,18 +34,15 @@ const CreateOrganisation = () => {
 
         // Check if wallet is connected
         if (!isConnected || !account) {
-            toast.error('Please connect your wallet first');
             try {
                 await connectWallet();
             } catch (err) {
-                toast.error('Failed to connect wallet: ' + err.message);
                 return;
             }
         }
 
         // Validate required fields
         if (!formData.name || !formData.description || !formData.startDate || !formData.endDate) {
-            toast.error('Please fill in all required fields');
             return;
         }
 
@@ -54,7 +50,6 @@ const CreateOrganisation = () => {
         const startDate = new Date(formData.startDate);
         const endDate = new Date(formData.endDate);
         if (endDate <= startDate) {
-            toast.error('End date must be after start date');
             return;
         }
 
@@ -70,11 +65,9 @@ const CreateOrganisation = () => {
             });
 
             console.log("Organisation created:", result);
-            toast.success("Organization Created Successfully!");
             navigate('/organisation'); // Redirect to the org page
         } catch (error) {
             console.error("Error creating organisation:", error);
-            toast.error(error.message || 'Failed to create organization');
         }
     };
 

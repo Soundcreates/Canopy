@@ -5,7 +5,6 @@ import { MagicCard } from '../components/dashboard/MagicBento';
 import { motion } from 'framer-motion';
 import { useOrganisation } from '../contexts/OrganisationContext';
 import { useWallet } from '../contexts/WalletContext';
-import { toast } from 'react-toastify';
 
 const OrgCard = ({ org, isOwnerOrMember }) => (
     <MagicCard className="!p-0 !bg-[#11141a] border border-white/10 group h-full flex flex-col">
@@ -110,7 +109,6 @@ const OrganisationMarketplace = () => {
             setUserOrganisations(userOrgIds);
         } catch (error) {
             console.error('Error loading organisations:', error);
-            toast.error('Failed to load organizations: ' + error.message);
             setOrganizations([]);
         } finally {
             setLoading(false);

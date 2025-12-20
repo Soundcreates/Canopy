@@ -4,7 +4,6 @@ import { useWallet } from '../../contexts/WalletContext';
 import { useNavigate } from 'react-router-dom';
 import FaultyTerminal from '../FaultyTerminal';
 import { verifyAuth } from '../../ApiFactory/AuthAPI';
-import { showToast } from '../../utils/toast';
 import { getApiBaseUrl } from '../../utils/apiConfig';
 
 const baseUrl = getApiBaseUrl();
@@ -46,12 +45,10 @@ const HeroSection = ({ itemVariants }) => {
     const handleMetaMask = async () => {
         try {
             console.log("Initializing Metamask Connection...");
-            showToast.info('Connecting to MetaMask...');
             setAuthError(null);
 
             const connectedAddress = await connectWallet();
             console.log("Wallet connected, address:", connectedAddress);
-            showToast.success(`Wallet connected: ${connectedAddress.slice(0, 6)}...${connectedAddress.slice(-4)}`);
 
             await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -62,7 +59,6 @@ const HeroSection = ({ itemVariants }) => {
         } catch (err) {
             console.error("Error connecting wallet:", err);
             const errorMessage = err.message || 'Failed to connect wallet';
-            showToast.error(`Wallet connection failed: ${errorMessage}`);
             setAuthError(errorMessage);
         }
     };
@@ -70,7 +66,6 @@ const HeroSection = ({ itemVariants }) => {
     const authenticateUser = async () => {
         if (!signer || !account) {
             setAuthError('Wallet not connected');
-            showToast.error('Wallet not connected');
             return;
         }
 
@@ -79,10 +74,8 @@ const HeroSection = ({ itemVariants }) => {
 
         try {
             console.log("Starting authentication process");
-            showToast.info('Please sign the message in MetaMask...');
             const message = 'Canopy verification login';
             const signature = await signer.signMessage(message);
-            showToast.info('Verifying signature with server...');
 
             const response = await verifyAuth(account, message, signature); //AuthAPi.js
 
@@ -96,13 +89,9 @@ const HeroSection = ({ itemVariants }) => {
 
             setIsAuthenticated(true);
             setAuthMessage('Authentication successful');
-            showToast.success('Authentication complete! Redirecting to dashboard...');
         } catch (err) {
             console.error("Authentication error:", err);
             const errorMessage = err.message || 'Authentication failed';
-            if (!errorMessage.includes('Authentication')) {
-                showToast.error(`Authentication error: ${errorMessage}`);
-            }
             setAuthError(errorMessage);
             setIsAuthenticated(false);
         } finally {

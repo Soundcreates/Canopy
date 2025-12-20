@@ -5,6 +5,7 @@ const forestRouter = require("./ForestRouter");
 const ndviRouter = require("./NDVIRouter");
 const lulcRouter = require("./LULCRouter");
 const organisationRouter = require("./OrganisationRouter");
+const profileRouter = require("./ProfileRouter");
 
 // Auth routes
 router.use("/auth", authRouter);
@@ -20,5 +21,8 @@ router.use("/lulc", lulcRouter);
 
 // Organisation routes
 router.use("/organisations", organisationRouter);
+
+//Profile routes
+router.use('/profile', profileRouter);
 
 module.exports = router;

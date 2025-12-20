@@ -6,11 +6,9 @@ import MembersTable from '../components/dashboard/MembersTable';
 import SidePanel from '../components/dashboard/SidePanel';
 import { MagicBentoGrid } from '../components/dashboard/MagicBento';
 import AddMemberModal from '../components/dashboard/AddMemberModal';
-import { toast } from 'react-toastify';
 import { useOrganisation } from '../contexts/OrganisationContext';
 import { useWallet } from '../contexts/WalletContext';
 import { getOrganisations } from '../ApiFactory/OrganisationAPI';
-import { showToast } from '../utils/toast';
 import { fetchOrganisationById } from '../ApiFactory/OrganisationAPI';
 
 
@@ -38,10 +36,6 @@ const OrganisationPage = () => {
             }
         } catch (err) {
             console.error("Error loading organisation details:", err);
-            // Don't show error toast for connection errors
-            if (err.message && !err.message.includes('Failed to fetch')) {
-                showToast.error("Failed to load organization details");
-            }
         }
     }, [account]);
 
@@ -65,18 +59,10 @@ const OrganisationPage = () => {
                 } else {
                     setSelectedOrganisation(null);
                 }
-                
-                if (orgs.length > 0) {
-                    showToast.success("Organisations loaded successfully");
-                }
             } catch (err) {
                 console.error("Error loading organisations from page:", err);
                 setOrganisations([]);
                 setSelectedOrganisation(null);
-                // Only show error if it's not a connection error
-                if (err.message && !err.message.includes('Failed to fetch')) {
-                    showToast.error("Error loading organisations", err.message || err);
-                }
             } finally {
                 setLoadingOrgs(false);
             }
@@ -87,7 +73,6 @@ const OrganisationPage = () => {
 
    const handleAddMember = () => {
         if (!selectedOrganisation) {
-            toast.error('Please select an organization first');
             return;
         }
         setIsAddMemberOpen(true);
