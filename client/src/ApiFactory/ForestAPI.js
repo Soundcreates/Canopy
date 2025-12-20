@@ -3,7 +3,7 @@ import { getApiBaseUrl } from '../utils/apiConfig';
 const API_BASE_URL = getApiBaseUrl();
 console.log("API Base URL: ", API_BASE_URL);
 
-export const registerForest = async (area, geoHash, account) => {
+export const registerForest = async (area, geoHash, account, organisationId = null) => {
     console.log('Registering forest...from frontend');
     console.log("Checking for account: ", account);
     if (!account) {
@@ -84,13 +84,21 @@ export const registerForest = async (area, geoHash, account) => {
         console.log("Message:", message);
         console.log("Signature (first 20 chars):", signature.substring(0, 20) + "...");
 
+        const requestBody = { area, geoHash, address: address };
+
+        // Add organisationId if provided
+        if (organisationId) {
+            requestBody.organisationId = organisationId;
+            console.log("Including organisationId in request:", organisationId);
+        }
+
         const response = await fetch(`${API_BASE_URL}/api/forests/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': authHeader,
             },
-            body: JSON.stringify({ area, geoHash, address: address }),
+            body: JSON.stringify(requestBody),
         });
 
         console.log("Response status:", response.status);
@@ -114,6 +122,106 @@ export const registerForest = async (area, geoHash, account) => {
     }
 };
 
+
+export const registerForestAsOrganisation = async (forestId, orgId, account) => {
+    console.log('Registering forest to organization from frontend');
+    console.log('Forest ID:', forestId);
+    console.log('Organization ID:', orgId);
+    console.log('Account:', account);
+
+    if (!account) {
+        console.log('Wallet not connected');
+        throw new Error('Wallet not connected');
+    }
+
+    if (!forestId || !orgId) {
+        throw new Error('Forest ID and Organization ID are required');
+    }
+
+    console.log('Fetching stored auth (sig and msg) from localstorage');
+    const storedAuth = localStorage.getItem(`canopy_auth_${account.toLowerCase()}`);
+    console.log('Stored auth:', storedAuth);
+
+    if (!storedAuth) {
+        console.log('Authentication not found. Please sign in first.');
+        throw new Error('Authentication not found. Please sign in first.');
+    }
+
+    let authData;
+    try {
+        authData = JSON.parse(storedAuth);
+    } catch (parseError) {
+        console.error('Error parsing stored auth data:', parseError);
+        throw new Error('Invalid authentication data. Please sign in again by connecting your wallet and signing the message on the landing page.');
+    }
+
+    if (!authData.signature || !authData.message) {
+        console.error('Missing authentication fields. Stored auth data:', authData);
+        localStorage.removeItem(`canopy_auth_${account.toLowerCase()}`);
+        throw new Error('Authentication data is incomplete. Please sign in again by connecting your wallet and signing the message on the landing page.');
+    }
+
+    let signature = String(authData.signature).trim();
+
+    if (!signature.startsWith('0x')) {
+        console.error('Invalid signature format - does not start with 0x:', signature);
+        throw new Error('Invalid signature format. Please sign in again.');
+    }
+
+    if (signature.length < 130) {
+        console.error('Invalid signature format - too short:', signature.length);
+        throw new Error('Invalid signature format. Please sign in again.');
+    }
+
+    if (!/^0x[a-fA-F0-9]+$/.test(signature)) {
+        console.error('Invalid signature format - not a valid hex string:', signature);
+        throw new Error('Invalid signature format. Please sign in again.');
+    }
+
+    const address = authData.address || account;
+    if (!address) {
+        throw new Error('Address not found in authentication data');
+    }
+
+    const message = authData.message;
+
+    console.log('Signature format validated successfully');
+
+    try {
+        console.log('Sending request to register forest to organization');
+
+        const authHeader = `Bearer ${address}:${message}:${signature}`;
+
+        const response = await fetch(`${API_BASE_URL}/api/forests/registerAsOrganisation`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': authHeader,
+            },
+            body: JSON.stringify({ forestId, orgId }),
+        });
+
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+
+        if (!response.ok) {
+            console.log('Response is not ok');
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            console.error('Error response:', errorData);
+            const errorMessage = errorData.error || errorData.message || `HTTP ${response.status}: Request failed`;
+            throw new Error(errorMessage);
+        }
+
+        console.log('Response is ok');
+        const data = await response.json();
+        console.log('Forest registered to organization successfully:', data);
+
+        return data;
+    } catch (error) {
+        console.error('Error registering forest to organization from frontend:', error);
+        throw error;
+    }
+}
 
 export const requestNDVI = async (
     forest_id,

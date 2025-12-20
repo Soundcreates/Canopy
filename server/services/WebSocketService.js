@@ -8,7 +8,7 @@ const { governanceService } = require('./GovernanceService');
 class WebSocketService {
     constructor() {
         this.io = null;
-        this.rooms = new Map(); 
+        this.rooms = new Map();
     }
 
     initialize(server) {
@@ -204,7 +204,7 @@ class WebSocketService {
         socket.to(socket.data.roomId).emit('map-updated', mapState);
     }
 
-  
+
 
     async handleSubmitVote(socket, { vote }) {
         const room = this.rooms.get(socket.data.roomId);
@@ -224,13 +224,19 @@ class WebSocketService {
         const approveVotes = [...room.votes.values()].filter(v => v.vote === 'approve').length;
         const rejectVotes = [...room.votes.values()].filter(v => v.vote === 'reject').length;
         const totalMembers = room.members.size;
+        const votesCast = room.votes.size;
+
+        const canSubmit = votesCast >= totalMembers/2; //very very very imp line
+        const result = approveVotes > (totalMembers / 2) ? 'approved' :
+            rejectVotes >= (totalMembers / 2) ? 'rejected' : null;
 
         this.io.to(socket.data.roomId).emit('voting-status', {
             approveVotes,
             rejectVotes,
             totalMembers,
             votesCount: room.votes.size,
-            result: approveVotes > rejectVotes ? 'approved' : null
+            canSubmit,
+            result
         });
     }
 

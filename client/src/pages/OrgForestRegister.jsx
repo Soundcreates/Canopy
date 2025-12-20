@@ -13,6 +13,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { fetchOrganisationById } from '../ApiFactory/OrganisationAPI';
 import { createRegistrationSession, getActiveRegistrationSession, endRegistrationSession } from '../ApiFactory/RegistrationSessionAPI';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { registerForest, requestNDVI, startNDVIMonitoring } from '../ApiFactory/ForestAPI';
 
 
 //if you need to run the mapbox map, u need to have a mapbox account which provides a public access token
@@ -365,10 +366,23 @@ const OrgForestRegister = () => {
         draw.add(squareFeature);
 
         const newPlotData = {
+            // Original data
             geojson: squareFeature,
             areaSqMeters: turf.area(squareFeature),
             centroid: { lng: centerLng, lat: centerLat },
-            geoHash: `${(centerLng - half).toFixed(6)},${(centerLng + half).toFixed(6)},${(centerLat - half).toFixed(6)},${(centerLat + half).toFixed(6)}`
+
+            // Backend-required fields for registerForest
+            area: turf.area(squareFeature), // Area in square meters
+            geoHash: `${(centerLng - half).toFixed(6)},${(centerLng + half).toFixed(6)},${(centerLat - half).toFixed(6)},${(centerLat + half).toFixed(6)}`,
+
+            // Backend-required fields for NDVI
+            min_lon: centerLng - half,
+            max_lon: centerLng + half,
+            min_lat: centerLat - half,
+            max_lat: centerLat + half,
+
+            // Additional computed fields
+            areaHectares: turf.area(squareFeature) / 10000, // Convert to hectares
         };
 
         setPlotData(newPlotData);
@@ -408,10 +422,9 @@ const OrgForestRegister = () => {
             }
         }
     };
-
     const handleSubmit = async () => {
         if (!plotData) { return; }
-        if (!votingStatus || votingStatus.result !== 'approved') {
+        if (!votingStatus || !votingStatus.canSubmit) {
             console.log('Voting not complete or not approved yet');
             return;
         }
@@ -419,23 +432,94 @@ const OrgForestRegister = () => {
         setIsSubmitting(true);
 
         try {
-            // DAO contract voting is now integrated:
-            // 1. On-chain proposal is created automatically when room is created
-            // 2. On-chain votes are cast automatically when users vote in real-time
-            // 3. Proposal ID is available in votingStatus for execution if needed
-
             console.log('Voting approved, proceeding with registration...');
             console.log('Plot data:', plotData);
             console.log('Form data:', formData);
 
-            // Simulate registration process
-            // In production, this would call the forest registration API
-            // which would then interact with the smart contract
+            // Register forest if voting was approved
+            if (votingStatus.approveVotes > votingStatus.rejectVotes) {
+                // Prepare submission payload according to backend requirements
+                // Convert area to integer (smart contract expects integer)
+                const areaInteger = Math.floor(plotData.areaSqMeters);
+                const geoHash = plotData.geoHash;
+                const ownerAddress = organisation?.owner || account;
 
+                console.log('Submitting forest registration:', {
+                    area: areaInteger,
+                    geoHash,
+                    ownerAddress,
+                    organisationId: orgId
+                });
+
+                // Call registerForest API with organisationId
+                const response = await registerForest(
+                    areaInteger,
+                    geoHash,
+                    ownerAddress,
+                    parseInt(orgId) // Pass organisationId to link forest to organization
+                );
+
+                console.log('Forest registration successful:', response);
+
+                // Extract forest ID from response
+                const forestId = response.forest?.[0]?.forestId || response.forest?.forestId;
+
+                if (!forestId) {
+                    console.error('Forest ID not found in response:', response);
+                    throw new Error('Forest registration succeeded but forest ID not found in response');
+                }
+
+                console.log('Forest ID received:', forestId);
+
+                // Immediately call NDVI endpoint after registration
+                console.log('Calling NDVI endpoint immediately after registration');
+                try {
+                    await requestNDVI(
+                        forestId,
+                        plotData.min_lon,
+                        plotData.max_lon,
+                        plotData.min_lat,
+                        plotData.max_lat,
+                        {
+                            area_hectares: plotData.areaSqMeters / 10000,
+                            status: 'ACTIVE'
+                        }
+                    );
+                    console.log('Initial NDVI computation completed successfully');
+                } catch (ndviError) {
+                    console.error('Error calling initial NDVI:', ndviError);
+                    // Don't throw - allow registration to succeed even if initial NDVI fails
+                }
+
+                // Start 3-hour monitoring for this forest
+                console.log('Starting 3-hour NDVI monitoring');
+                startNDVIMonitoring(
+                    forestId,
+                    plotData.min_lon,
+                    plotData.max_lon,
+                    plotData.min_lat,
+                    plotData.max_lat,
+                    {
+                        area_hectares: plotData.areaSqMeters / 10000,
+                        status: 'ACTIVE'
+                    },
+                    (ndviData) => {
+                        console.log('NDVI update received from monitoring:', ndviData);
+                    },
+                    (error) => {
+                        console.error('NDVI monitoring error:', error);
+                    }
+                );
+            }
+
+            // Exit session after successful registration
+            await handleExit();
+
+            // Navigate to organisation page
             setTimeout(() => {
                 setIsSubmitting(false);
                 navigate('/organisation');
-            }, 2000);
+            }, 1500);
         } catch (error) {
             console.error('Error submitting proposal:', error);
             setIsSubmitting(false);
@@ -644,19 +728,16 @@ const OrgForestRegister = () => {
 
                             <button
                                 onClick={handleSubmit}
-                                disabled={!plotData || isSubmitting}
-                                className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-medium text-xs font-mono rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider mb-2"
+                                disabled={!plotData || !votingStatus?.canSubmit || !isOwner || isSubmitting}
+                                className="w-full py-3 cursor-pointer bg-emerald-500 hover:bg-emerald-400 text-black font-medium text-xs font-mono rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider mb-2"
                             >
                                 {isSubmitting ? 'INITIATING...' : 'SUBMIT PROPOSAL'}
                             </button>
                         </div>
 
-                        {/* Exit Button - Bottom Right of the panel/container */}
+
                         <div className="absolute bottom-3 right-3">
-                            {/* Or better, render it outside the flow or fixed. 
-                                User asked "At the bottom right of the page".
-                                I will put it fixed z-index at page bottom right.
-                             */}
+
                         </div>
                     </div>
 
