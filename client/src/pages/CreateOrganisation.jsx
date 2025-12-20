@@ -5,6 +5,7 @@ import { MagicCard } from '../components/dashboard/MagicBento';
 import { motion } from 'framer-motion';
 import { useOrganisation } from '../contexts/OrganisationContext';
 import { useWallet } from '../contexts/WalletContext';
+import { removeCachedData, getOrganisationsCacheKey } from '../utils/cache';
 
 const CreateOrganisation = () => {
     const navigate = useNavigate();
@@ -65,7 +66,16 @@ const CreateOrganisation = () => {
             });
 
             console.log("Organisation created:", result);
-            navigate('/organisation'); // Redirect to the org page
+            
+            // Invalidate cache to ensure fresh data is fetched
+            if (account) {
+                removeCachedData(getOrganisationsCacheKey(account));
+            }
+            
+            // Small delay to ensure cache is cleared before navigation
+            setTimeout(() => {
+                navigate('/organisation'); // Redirect to the org page
+            }, 100);
         } catch (error) {
             console.error("Error creating organisation:", error);
         }

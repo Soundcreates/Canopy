@@ -9,6 +9,7 @@ const ForestModel = pgTable("forest", {
     geoHash: varchar().notNull(),
     txHash: varchar().notNull().unique(),
     isActive: boolean().notNull().default(true),
+    organisationId: integer().default(null),
     // NFT tracking fields
     latestTokenId: integer(), // Latest carbon credit NFT token ID
     latestMetadataUri: varchar(), // Latest NFT metadata URI

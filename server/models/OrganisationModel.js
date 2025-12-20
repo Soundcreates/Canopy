@@ -13,6 +13,7 @@ const OrganisationModel = pgTable("Organisation", {
     updatedAt: timestamp().notNull().defaultNow(),
     owner: varchar().notNull(), // Primary owner address
     isActive: boolean().notNull().default(true),
+    forests: integer().array().default([]),
 }, (table) => ({
     ownerFK: foreignKey({
         columns: [table.owner],

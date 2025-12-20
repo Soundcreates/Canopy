@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import TopNav from '../components/dashboard/TopNav';
 import OrgKPIGrid from '../components/dashboard/OrgKPIGrid';
 import MembersTable from '../components/dashboard/MembersTable';
@@ -10,6 +11,7 @@ import { useOrganisation } from '../contexts/OrganisationContext';
 import { useWallet } from '../contexts/WalletContext';
 import { getOrganisations } from '../ApiFactory/OrganisationAPI';
 import { fetchOrganisationById } from '../ApiFactory/OrganisationAPI';
+import { getActiveRegistrationSession, joinSession } from '../ApiFactory/RegistrationSessionAPI';
 
 
 const OrganisationPage = () => {
@@ -20,6 +22,7 @@ const OrganisationPage = () => {
     const [organisations, setOrganisations] = useState([]);
     const [selectedOrganisation, setSelectedOrganisation] = useState(null);
     const [loadingOrgs, setLoadingOrgs] = useState(false);
+    const [isSessionActive, setIsSessionActive] = useState(false);
     const { account } = useWallet();
 
     const loadOrganisationDetails = useCallback(async (id) => {
@@ -34,6 +37,16 @@ const OrganisationPage = () => {
                     members: []
                 });
             }
+
+            // Check for active session
+            try {
+                const session = await getActiveRegistrationSession(id);
+                setIsSessionActive(session && session.session && session.session.isActive);
+            } catch (err) {
+                console.log("No active session or error checking:", err);
+                setIsSessionActive(false);
+            }
+
         } catch (err) {
             console.error("Error loading organisation details:", err);
         }
@@ -49,7 +62,8 @@ const OrganisationPage = () => {
         const fetchOrgs = async () => {
             setLoadingOrgs(true);
             try {
-                const response = await getOrganisations(account);
+                // Force refresh by not using cache when account changes
+                const response = await getOrganisations(account, false);
                 const orgs = response.organisations || [];
                 setOrganisations(orgs);
 
@@ -69,6 +83,9 @@ const OrganisationPage = () => {
         };
 
         fetchOrgs();
+        if (isSessionActive) {
+            handleJoinSession();
+        }
     }, [account, loadOrganisationDetails]);
 
     const handleAddMember = () => {
@@ -119,27 +136,73 @@ const OrganisationPage = () => {
                                     >
                                         + CREATE ORGANIZATION
                                     </button>
+                                    {selectedOrganisation && (
+                                        (() => {
+                                            const isOwner = selectedOrganisation.organisation.owner === account?.toLowerCase() ||
+                                                selectedOrganisation.members.some(m => m.userAddress === account?.toLowerCase() && m.role === 'owner');
+
+                                            if (isOwner) {
+                                                return (
+                                                    <button
+                                                        onClick={() => navigate(`/org/register/${selectedOrganisation?.organisation.id}`)}
+                                                        className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-mono font-medium rounded border border-emerald-500/20 transition-colors flex items-center gap-2 tracking-wide"
+                                                    >
+                                                        + REGISTER FOREST
+                                                    </button>
+                                                );
+                                            } else if (isSessionActive) {
+                                                const handleJoinSession = async () => {
+                                                    try {
+                                                        const response = await getActiveRegistrationSession(selectedOrganisation.organisation.id);
+
+                                                        if (response && response.session && response.session.isActive) {
+                                                            // Call backend to add user to session list
+                                                            await joinSession(response.session.sessionId, account);
+
+                                                            navigate(`/org/register/${selectedOrganisation.organisation.id}`);
+                                                        } else {
+                                                            toast.error("There is no ongoing session currently");
+                                                            setIsSessionActive(false);
+                                                        }
+                                                    } catch (error) {
+                                                        console.error("Error checking/joining session:", error);
+                                                        // Ensure error message is user friendly
+                                                        if (error.message && error.message.includes("There is no ongoing session")) {
+                                                            toast.error("There is no ongoing session currently");
+                                                        } else {
+                                                            // Fallback
+                                                            toast.error("Failed to join session. Please try again.");
+                                                        }
+                                                        setIsSessionActive(false);
+                                                    }
+                                                };
+
+                                                return (
+                                                    <button
+                                                        onClick={handleJoinSession}
+                                                        disabled={!isSessionActive}
+                                                        className="px-4 py-2 bg-blue-500 hover:bg-blue-400 text-black text-xs font-mono font-medium rounded transition-colors flex items-center gap-2 tracking-wide font-bold"
+                                                    >
+                                                        JOIN SESSION
+                                                    </button>
+                                                );
+                                            }
+                                            return null;
+                                        })()
+                                    )}
                                     <button
-                                        onClick={() => navigate(`/org/register/${selectedOrganisation?.organisation.id}`)}
-                                        className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-mono font-medium rounded border border-emerald-500/20 transition-colors flex items-center gap-2 tracking-wide"
+                                        onClick={() => navigate('/marketplace')}
+                                        className="px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-mono font-medium rounded border border-blue-500/20 transition-colors flex items-center gap-2 tracking-wide"
                                     >
-                                        + REGISTER FOREST
+                                        MARKETPLACE
                                     </button>
                                     {selectedOrganisation && (
-                                        <>
-                                            <button
-                                                onClick={() => navigate('/marketplace')}
-                                                className="px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-mono font-medium rounded border border-blue-500/20 transition-colors flex items-center gap-2 tracking-wide"
-                                            >
-                                                MARKETPLACE
-                                            </button>
-                                            <button
-                                                onClick={handleAddMember}
-                                                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-mono font-medium rounded border border-white/10 transition-colors flex items-center gap-2 tracking-wide"
-                                            >
-                                                + ADD MEMBER
-                                            </button>
-                                        </>
+                                        <button
+                                            onClick={handleAddMember}
+                                            className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-mono font-medium rounded border border-white/10 transition-colors flex items-center gap-2 tracking-wide"
+                                        >
+                                            + ADD MEMBER
+                                        </button>
                                     )}
                                 </div>
                             </div>

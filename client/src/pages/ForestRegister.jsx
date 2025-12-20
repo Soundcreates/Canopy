@@ -527,17 +527,7 @@ const ForestRegister = () => {
       // Store the stop function (in case we need to stop it later)
       monitoringStopRef.current = stopMonitoring;
 
-      // Store monitoring info in localStorage so it persists across page reloads
-      const monitoringKey = `ndvi_monitoring_${forestId}`;
-      localStorage.setItem(monitoringKey, JSON.stringify({
-        forestId,
-        min_lon: plotData.min_lon,
-        max_lon: plotData.max_lon,
-        min_lat: plotData.min_lat,
-        max_lat: plotData.max_lat,
-        area_hectares: plotData.areaHectares,
-        startedAt: new Date().toISOString()
-      }));
+
 
       // Clear the form and plot
       setPlotData(null);
@@ -564,7 +554,13 @@ const ForestRegister = () => {
   });
 
   return (
-    <div className="min-h-screen bg-[#060010] text-gray-300 font-sans relative overflow-hidden">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.5 }}
+      className="min-h-screen bg-[#060010] text-gray-300 font-sans relative overflow-hidden"
+    >
       {/* Background Layer: SquareGrid for technical feel */}
       <div className="fixed inset-0 z-0 opacity-40 pointer-events-none">
         <Squares
@@ -590,6 +586,7 @@ const ForestRegister = () => {
 
         {/* Header Section */}
         <motion.div
+
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -688,8 +685,8 @@ const ForestRegister = () => {
               <button
                 onClick={toggleDrawing}
                 className={`px-4 py-2 text-xs font-mono uppercase tracking-wider rounded-sm backdrop-blur-md border transition-all ${isDrawing
-                    ? 'bg-emerald-600/30 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600/40'
-                    : 'bg-black/50 border-white/10 text-gray-300 hover:border-emerald-500/30 hover:text-emerald-400'
+                  ? 'bg-emerald-600/30 border-emerald-500/50 text-emerald-400 hover:bg-emerald-600/40'
+                  : 'bg-black/50 border-white/10 text-gray-300 hover:border-emerald-500/30 hover:text-emerald-400'
                   }`}
               >
                 {isDrawing ? 'Stop Drawing' : 'Draw Plot'}
@@ -780,8 +777,8 @@ const ForestRegister = () => {
                 onClick={handleSubmit}
                 disabled={!plotData || !account || isSubmitting}
                 className={`w-full py-3 text-xs font-mono uppercase tracking-wider rounded-sm transition-all ${plotData && account && !isSubmitting
-                    ? 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-500 hover:text-emerald-400 border border-emerald-500/50 hover:border-emerald-400'
-                    : 'bg-gray-800/20 text-gray-600 border border-gray-700/30 cursor-not-allowed'
+                  ? 'bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-500 hover:text-emerald-400 border border-emerald-500/50 hover:border-emerald-400'
+                  : 'bg-gray-800/20 text-gray-600 border border-gray-700/30 cursor-not-allowed'
                   }`}
               >
                 {isSubmitting ? 'Registering...' : 'Initialize Registration'}
@@ -794,7 +791,7 @@ const ForestRegister = () => {
         </motion.div>
 
       </main>
-    </div>
+    </motion.div>
   );
 }
 

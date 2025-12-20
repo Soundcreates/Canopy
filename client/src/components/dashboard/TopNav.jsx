@@ -1,13 +1,54 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useWallet } from "../../contexts/WalletContext";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import NotificationDropdown from "./NotificationDropdown";
+import { clearAllCache } from "../../utils/cache";
+import { getTokenBalance } from "../../ApiFactory/TokenAPI";
 
 const TopNav = () => {
-  const { account, isConnected } = useWallet();
+  const { account, isConnected, disconnectWallet } = useWallet();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [tokenBalance, setTokenBalance] = useState("0");
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const navigate = useNavigate();
+
+  // Fetch token balance when account changes
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!account || !isConnected) {
+        setTokenBalance("0");
+        return;
+      }
+
+      setIsLoadingBalance(true);
+      try {
+        const response = await getTokenBalance(account, true);
+        if (response.success) {
+          setTokenBalance(parseFloat(response.balance).toFixed(2));
+        }
+      } catch (error) {
+        console.error("Error fetching token balance:", error);
+        setTokenBalance("0");
+      } finally {
+        setIsLoadingBalance(false);
+      }
+    };
+
+    fetchBalance();
+    // Refresh balance every 30 seconds
+    const interval = setInterval(fetchBalance, 30000);
+    return () => clearInterval(interval);
+  }, [account, isConnected]);
+
+  const handleDisconnect = () => {
+    setIsDropdownOpen(false);
+    disconnectWallet();
+    // Clear all cached data
+    clearAllCache();
+    // Navigate to landing page
+    navigate('/');
+  };
 
   return (
     <nav className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-[#0b0f14] sticky top-0 z-50">
@@ -71,6 +112,28 @@ const TopNav = () => {
 
       {/* Right: Wallet & Network */}
       <div className="flex items-center gap-4">
+        {/* Token Balance */}
+        {isConnected && account && (
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded border border-emerald-500/20 bg-emerald-500/5">
+            <svg
+              className="w-3.5 h-3.5 text-emerald-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <span className="text-xs font-mono text-emerald-400">
+              {isLoadingBalance ? "..." : `${tokenBalance} CTK`}
+            </span>
+          </div>
+        )}
+
         {/* Notifications */}
         {isConnected && <NotificationDropdown />}
 
@@ -141,10 +204,7 @@ const TopNav = () => {
                   Profile Settings
                 </button>
                 <button
-                  onClick={() => {
-                    setIsDropdownOpen(false);
-                    // Disconnect logic here if needed
-                  }}
+                  onClick={handleDisconnect}
                   className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-red-400 transition-colors flex items-center gap-2"
                 >
                   <svg

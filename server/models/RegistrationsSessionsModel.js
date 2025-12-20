@@ -1,7 +1,7 @@
 const {
   pgTable,
-integer,
-bigint  ,
+  integer,
+  bigint,
   timestamp,
   boolean,
   varchar,
@@ -16,6 +16,7 @@ const RegistrationsSessionsModel = pgTable(
     sessionId: bigint({ mode: 'number' }).notNull(),
     organisationId: integer().notNull(),
     owner: varchar().notNull(),
+    users: varchar().array().notNull().default([]),
     isActive: boolean().notNull().default(true),
     createdAt: timestamp().notNull().defaultNow(),
     endedAt: timestamp().notNull(),

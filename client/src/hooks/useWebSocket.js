@@ -4,54 +4,48 @@ import { getApiBaseUrl } from '../utils/apiConfig';
 import { useWallet } from '../contexts/WalletContext';
 import { useGovernance } from '../contexts/GovernanceContext';
 
-/**
- * Custom hook for WebSocket connection to registration sessions
- */
 export const useWebSocket = (sessionId, organisationId, address, isOwner = false) => {
     const [isConnected, setIsConnected] = useState(false);
-    const [roomState, setRoomState] = useState(null);
     const [plotData, setPlotData] = useState(null);
+    const [mapState, setMapState] = useState(null);
     const [votes, setVotes] = useState(new Map());
     const [members, setMembers] = useState([]);
     const [votingStatus, setVotingStatus] = useState(null);
     const [onChainProposalId, setOnChainProposalId] = useState(null);
+
     const socketRef = useRef(null);
+    const hasJoinedRef = useRef(false);
+
     const { account, signer } = useWallet();
     const { vote: voteOnChain } = useGovernance();
 
     const API_BASE_URL = getApiBaseUrl();
-    // WebSocket URL should be the base server URL without /api
-    const WS_URL = API_BASE_URL.includes('/api') 
-        ? API_BASE_URL.replace('/api', '') 
+    const WS_URL = API_BASE_URL.includes('/api')
+        ? API_BASE_URL.replace('/api', '')
         : API_BASE_URL;
 
+   //we only create socket one
     useEffect(() => {
-        if (!sessionId || !organisationId || !address) {
-            return;
-        }
-
-        // Initialize socket connection
         socketRef.current = io(WS_URL, {
-            transports: ['websocket', 'polling'],
+            autoConnect: false,
+            transports: ['websocket'],
             reconnection: true,
-            reconnectionDelay: 1000,
-            reconnectionAttempts: 5
+            reconnectionAttempts: 10,
+            reconnectionDelay: 1000
         });
 
         const socket = socketRef.current;
 
-        // Connection events
         socket.on('connect', () => {
-            console.log('WebSocket connected');
             setIsConnected(true);
 
-            // Create or join room based on role
+            if (hasJoinedRef.current) return;
+
             if (isOwner) {
                 socket.emit('create-room', {
                     sessionId,
                     organisationId,
-                    owner: address,
-                    orgId: organisationId
+                    owner: address
                 });
             } else {
                 socket.emit('join-room', {
@@ -60,169 +54,149 @@ export const useWebSocket = (sessionId, organisationId, address, isOwner = false
                     address
                 });
             }
+
+            hasJoinedRef.current = true;
         });
 
         socket.on('disconnect', () => {
-            console.log('WebSocket disconnected');
             setIsConnected(false);
+            hasJoinedRef.current = false;
         });
 
-        socket.on('connect_error', (error) => {
-            console.error('WebSocket connection error:', error);
-            setIsConnected(false);
+        socket.on('room-ready', () => {
+            if (!isOwner) {
+                socket.emit('join-room', {
+                    sessionId,
+                    organisationId,
+                    address
+                });
+            }
         });
 
-        // Room events
-        socket.on('room-created', (data) => {
-            console.log('Room created:', data);
-            setRoomState(data);
-            setMembers(data.members || []);
+        socket.on('room-not-ready', () => {
+            setTimeout(() => {
+                socket.emit('join-room', {
+                    sessionId,
+                    organisationId,
+                    address
+                });
+            }, 1000);
         });
 
         socket.on('room-joined', (data) => {
-            console.log('Room joined:', data);
-            setRoomState(data);
-            setPlotData(data.plotData);
+            setPlotData(data.plotData || null);
             setMembers(data.members || []);
-            
-            // Convert votes array to Map
-            const votesMap = new Map();
-            if (data.votes) {
-                data.votes.forEach(vote => {
-                    votesMap.set(vote.address, vote);
-                });
-            }
-            setVotes(votesMap);
+
+            const voteMap = new Map();
+            (data.votes || []).forEach(v => {
+                voteMap.set(v.address, v);
+            });
+            setVotes(voteMap);
+        });
+
+        socket.on('room-created', (data) => {
+            setMembers(data.members || []);
         });
 
         socket.on('member-joined', (data) => {
-            console.log('Member joined:', data);
             setMembers(prev => {
-                const exists = prev.find(m => m.address === data.address);
-                if (!exists) {
-                    return [...prev, data];
-                }
-                return prev;
+                if (prev.find(m => m.address === data.address)) return prev;
+                return [...prev, data];
             });
         });
 
         socket.on('member-left', (data) => {
-            console.log('Member left:', data);
             setMembers(prev => prev.filter(m => m.address !== data.address));
         });
 
-        // Plot events
         socket.on('plot-updated', (data) => {
-            console.log('Plot updated:', data);
             setPlotData(data.plotData);
         });
 
-        // Voting events
+        socket.on('map-updated', (data) => {
+            setMapState(data);
+        });
+
         socket.on('vote-submitted', (data) => {
-            console.log('Vote submitted:', data);
             setVotes(prev => {
-                const newVotes = new Map(prev);
-                newVotes.set(data.address, {
+                const next = new Map(prev);
+                next.set(data.address, {
                     vote: data.vote,
                     timestamp: data.timestamp
                 });
-                return newVotes;
+                return next;
             });
         });
 
         socket.on('voting-status', (data) => {
-            console.log('Voting status:', data);
             setVotingStatus(data);
         });
 
         socket.on('voting-complete', (data) => {
-            console.log('Voting complete:', data);
             setVotingStatus(prev => ({
                 ...prev,
-                result: data.result,
-                status: data.result === 'approved' ? 'completed' : 'rejected'
+                result: data.result
             }));
             if (data.proposalId) {
                 setOnChainProposalId(data.proposalId);
             }
         });
 
-        // Listen for on-chain vote trigger
-        socket.on('trigger-onchain-vote', async (data) => {
-            console.log('Trigger on-chain vote:', data);
-            const { proposalId, address: voterAddress, support } = data;
-            
-            // Only vote if this is for the current user and we have the vote function
-            if (account && account.toLowerCase() === voterAddress.toLowerCase() && signer && voteOnChain) {
-                try {
-                    console.log(`Casting on-chain vote: Proposal=${proposalId}, Support=${support}`);
-                    const txHash = await voteOnChain(proposalId, support);
-                    console.log(`On-chain vote cast successfully: ${txHash}`);
-                    
-                    // Notify backend that vote was cast
-                    socket.emit('onchain-vote-cast', {
-                        proposalId,
-                        address: voterAddress,
-                        txHash
-                    });
-                } catch (error) {
-                    console.error('Error casting on-chain vote:', error);
-                    socket.emit('onchain-vote-error', {
-                        proposalId,
-                        address: voterAddress,
-                        error: error.message
-                    });
-                }
-            } else if (!voteOnChain) {
-                console.warn('Governance vote function not available');
+        socket.on('trigger-onchain-vote', async ({ proposalId, address: voter, support }) => {
+            if (
+                account &&
+                account.toLowerCase() === voter.toLowerCase() &&
+                signer &&
+                voteOnChain
+            ) {
+                const txHash = await voteOnChain(proposalId, support);
+                socket.emit('onchain-vote-cast', {
+                    proposalId,
+                    address: voter,
+                    txHash
+                });
             }
         });
 
-        socket.on('error', (error) => {
-            console.error('WebSocket error:', error);
-        });
-
-        // Cleanup on unmount
         return () => {
-            if (socket) {
-                socket.emit('leave-room', { sessionId, organisationId });
-                socket.disconnect();
-            }
+            socket.disconnect();
         };
-    }, [sessionId, organisationId, address, isOwner, WS_URL]);
+    }, [WS_URL, sessionId, organisationId, address, isOwner, account, signer, voteOnChain]);
 
-    // Send plot update
+  
+    useEffect(() => {
+        if (!sessionId || !organisationId || !address) return;
+        socketRef.current.connect();
+    }, [sessionId, organisationId, address]);
+
     const sendPlotUpdate = useCallback((plotData) => {
         if (socketRef.current && isConnected && isOwner) {
             socketRef.current.emit('plot-update', { plotData });
         }
     }, [isConnected, isOwner]);
 
-    // Submit vote
-    const submitVote = useCallback((vote) => {
-        if (socketRef.current && isConnected && !isOwner) {
-            socketRef.current.emit('submit-vote', { vote });
+    const sendMapUpdate = useCallback((state) => {
+        if (socketRef.current && isConnected && isOwner) {
+            socketRef.current.emit('map-update', state);
         }
     }, [isConnected, isOwner]);
 
-    // Leave room
-    const leaveRoom = useCallback(() => {
+    const submitVote = useCallback((vote) => {
         if (socketRef.current && isConnected) {
-            socketRef.current.emit('leave-room', { sessionId, organisationId });
+            socketRef.current.emit('submit-vote', { vote });
         }
-    }, [isConnected, sessionId, organisationId]);
+    }, [isConnected]);
 
     return {
         isConnected,
-        roomState,
         plotData,
+        mapState,
         votes,
         members,
         votingStatus,
         onChainProposalId,
         sendPlotUpdate,
-        submitVote,
-        leaveRoom
+        sendMapUpdate,
+        submitVote
     };
 };
-

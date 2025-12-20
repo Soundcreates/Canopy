@@ -1,7 +1,8 @@
 const { OrganisationModel, OrganisationMemberModel } = require('../models/OrganisationModel');
 const { UsersModel } = require('../models/UserModel');
+const { ForestModel } = require('../models/ForestModel');
 const { db } = require('../config/db');
-const { eq, and, isNull } = require('drizzle-orm');
+const { eq, and, isNull, inArray } = require('drizzle-orm');
 
 /**
  * Create a new organization
@@ -58,7 +59,7 @@ async function createOrganisation(req, res) {
         if (owners && Array.isArray(owners) && owners.length > 0) {
             for (const ownerAddr of owners) {
                 const normalizedAddr = ownerAddr.toLowerCase();
-                
+
                 // Ensure user exists
                 const userExists = await db.select()
                     .from(UsersModel)
@@ -84,7 +85,7 @@ async function createOrganisation(req, res) {
         if (users && Array.isArray(users) && users.length > 0) {
             for (const userAddr of users) {
                 const normalizedAddr = userAddr.toLowerCase();
-                
+
                 // Ensure user exists
                 const userExists = await db.select()
                     .from(UsersModel)
@@ -144,11 +145,15 @@ async function getOrganisations(req, res) {
             isActive: OrganisationModel.isActive,
             createdAt: OrganisationModel.createdAt,
             updatedAt: OrganisationModel.updatedAt,
-            role: OrganisationMemberModel.role
+            role: OrganisationMemberModel.role,
+            joinedAt: OrganisationMemberModel.joinedAt
         })
-        .from(OrganisationModel)
-        .innerJoin(OrganisationMemberModel, eq(OrganisationModel.id, OrganisationMemberModel.organisationId))
-        .where(eq(OrganisationMemberModel.userAddress, userAddress.toLowerCase()));
+            .from(OrganisationModel)
+            .innerJoin(OrganisationMemberModel, eq(OrganisationModel.id, OrganisationMemberModel.organisationId))
+            .where(and(
+                eq(OrganisationMemberModel.userAddress, userAddress.toLowerCase()),
+                isNull(OrganisationMemberModel.leftDate)
+            ));
 
         console.log("Organisations retrieved:", organisations.length);
         return res.status(200).json({ organisations });
@@ -200,17 +205,57 @@ async function getOrganisationById(req, res) {
                     userAddress: OrganisationMemberModel.userAddress,
                     role: OrganisationMemberModel.role,
                     joinedAt: OrganisationMemberModel.joinedAt,
-                    leftDate: OrganisationMemberModel.leftDate
+                    leftDate: OrganisationMemberModel.leftDate,
+                    displayName: UsersModel.displayName,
                 })
-                .from(OrganisationMemberModel)
-                .where(and(
-                    eq(OrganisationMemberModel.organisationId, parseInt(id)),
-                    isNull(OrganisationMemberModel.leftDate)
-                ));
+                    .from(OrganisationMemberModel)
+                    .leftJoin(UsersModel, eq(OrganisationMemberModel.userAddress, UsersModel.address))
+                    .where(and(
+                        eq(OrganisationMemberModel.organisationId, parseInt(id)),
+                        isNull(OrganisationMemberModel.leftDate)
+                    ));
+
+                // Calculate forest stats for each member
+                const memberAddresses = members.map(m => m.userAddress);
+                let memberStats = {};
+
+                if (memberAddresses.length > 0) {
+                    const forests = await db.select({
+                        owner: ForestModel.owner,
+                        area: ForestModel.area,
+                        totalCarbonCredits: ForestModel.totalCarbonCredits
+                    })
+                        .from(ForestModel)
+                        .where(and(
+                            inArray(ForestModel.owner, memberAddresses),
+                            eq(ForestModel.isActive, true)
+                        ));
+
+                    // Aggregate
+                    forests.forEach(f => {
+                        if (!memberStats[f.owner]) {
+                            memberStats[f.owner] = { forestsRegistered: 0, verifiedArea: 0, totalCarbonCredits: 0 };
+                        }
+                        memberStats[f.owner].forestsRegistered++;
+                        memberStats[f.owner].verifiedArea += Number(f.area);
+                        memberStats[f.owner].totalCarbonCredits += (f.totalCarbonCredits || 0);
+                    });
+                }
+
+                // Merge stats
+                const membersWithStats = members.map(m => {
+                    const stats = memberStats[m.userAddress] || { forestsRegistered: 0, verifiedArea: 0, totalCarbonCredits: 0 };
+                    return {
+                        ...m,
+                        forestsRegistered: stats.forestsRegistered,
+                        verifiedArea: (stats.verifiedArea / 10000), // Convert m2 to ha
+                        totalCarbonCredits: stats.totalCarbonCredits
+                    };
+                });
 
                 return res.status(200).json({
                     organisation: organisation[0],
-                    members,
+                    members: membersWithStats,
                     isMember: true
                 });
             }
@@ -343,7 +388,7 @@ async function addMembers(req, res) {
         if (owners && Array.isArray(owners) && owners.length > 0) {
             for (const ownerAddr of owners) {
                 const normalizedAddr = ownerAddr.toLowerCase();
-                
+
                 // Check if already a member
                 const existing = await db.select()
                     .from(OrganisationMemberModel)
@@ -384,7 +429,7 @@ async function addMembers(req, res) {
         if (users && Array.isArray(users) && users.length > 0) {
             for (const userAddr of users) {
                 const normalizedAddr = userAddr.toLowerCase();
-                
+
                 // Check if already a member
                 const existing = await db.select()
                     .from(OrganisationMemberModel)
@@ -570,8 +615,8 @@ async function getMarketplaceOrganisations(req, res) {
             isActive: OrganisationModel.isActive,
             createdAt: OrganisationModel.createdAt,
         })
-        .from(OrganisationModel)
-        .where(eq(OrganisationModel.isActive, true));
+            .from(OrganisationModel)
+            .where(eq(OrganisationModel.isActive, true));
 
         // Get member counts for each organization
         const organisationsWithMembers = await Promise.all(
@@ -594,7 +639,7 @@ async function getMarketplaceOrganisations(req, res) {
                 const endDate = new Date(org.endDate);
                 const totalDuration = endDate - startDate;
                 const elapsed = now - startDate;
-                
+
                 let progress = 0;
                 if (totalDuration > 0) {
                     progress = Math.min(100, Math.max(0, Math.round((elapsed / totalDuration) * 100)));
@@ -602,10 +647,10 @@ async function getMarketplaceOrganisations(req, res) {
 
                 // Format dates for display
                 const formatDate = (date) => {
-                    return new Date(date).toLocaleDateString('en-US', { 
-                        year: 'numeric', 
-                        month: '2-digit', 
-                        day: '2-digit' 
+                    return new Date(date).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit'
                     });
                 };
 

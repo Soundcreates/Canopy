@@ -18,40 +18,24 @@ const StatusBadge = ({ status }) => {
     );
 };
 
-const MembersTable = () => {
-    // Mock data for organization members
-    const [members, setMembers] = useState([
-        {
-            id: 'USR-001',
-            name: 'Alex Creator',
-            role: 'OWNER',
-            forestsRegistered: 12,
-            verifiedArea: 4500.50,
-            carbonCredits: 120000,
-            status: 'ACTIVE',
-            image: 'https://i.pravatar.cc/150?u=a042581f4e29026024d'
-        },
-        {
-            id: 'USR-002',
-            name: 'Sarah Researcher',
-            role: 'MEMBER',
-            forestsRegistered: 5,
-            verifiedArea: 1250.20,
-            carbonCredits: 45000,
-            status: 'ACTIVE',
-            image: 'https://i.pravatar.cc/150?u=a042581f4e29026704d'
-        },
-        {
-            id: 'USR-003',
-            name: 'Mike Field',
-            role: 'MEMBER',
-            forestsRegistered: 2,
-            verifiedArea: 320.00,
-            carbonCredits: 8500,
-            status: 'PENDING',
-            image: 'https://i.pravatar.cc/150?u=a04258114e29026302d'
+const MembersTable = ({ members: propMembers }) => {
+    // Map backend data to UI model
+    const members = (propMembers || []).map(m => {
+        // If m has userAddress, it's likely from backend. If it has id, might be mock.
+        if (m.userAddress) {
+            return {
+                id: m.userAddress,
+                name: m.displayName || m.userAddress, // Backend might not send displayName yet, use address
+                role: m.role ? m.role.toUpperCase() : 'MEMBER',
+                forestsRegistered: m.forestsRegistered || 0,
+                verifiedArea: m.verifiedArea || 0,
+                carbonCredits: m.totalCarbonCredits || 0,
+                status: m.leftDate ? 'INACTIVE' : 'ACTIVE',
+                image: m.image || null
+            };
         }
-    ]);
+        return m; // Return as is if it doesn't match backend shape (e.g. mock data)
+    });
 
     return (
         <MagicCard
@@ -97,7 +81,7 @@ const MembersTable = () => {
                                                 <img src={member.image} alt={member.name} className="w-full h-full object-cover" />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center text-xs text-gray-400 font-mono">
-                                                    {member.name.substring(0, 2).toUpperCase()}
+                                                    {member.name ? member.name.substring(0, 2).toUpperCase() : '??'}
                                                 </div>
                                             )}
                                         </div>
@@ -109,8 +93,8 @@ const MembersTable = () => {
                                 </td>
                                 <td className="px-5 py-3 font-mono text-xs">
                                     <span className={`px-1.5 py-0.5 rounded ${member.role === 'OWNER'
-                                            ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                                            : 'text-gray-400'
+                                        ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
+                                        : 'text-gray-400'
                                         }`}>
                                         {member.role}
                                     </span>
@@ -119,10 +103,10 @@ const MembersTable = () => {
                                     {member.forestsRegistered}
                                 </td>
                                 <td className="px-5 py-3 text-right text-gray-300 font-mono">
-                                    {member.verifiedArea.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    {(member.verifiedArea || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </td>
                                 <td className="px-5 py-3 text-right text-white font-medium font-mono">
-                                    {member.carbonCredits.toLocaleString()}
+                                    {(member.carbonCredits || 0).toLocaleString()}
                                 </td>
                                 <td className="px-5 py-3 text-right">
                                     <StatusBadge status={member.status} />

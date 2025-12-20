@@ -20,11 +20,18 @@ const StatusBadge = ({ status }) => {
     );
 };
 
-const ForestTable = () => {
+const ForestTable = ({ forests: propForests, loading: propLoading, error: propError }) => {
     const { selectedForest, setSelectedForest } = useSelectedForest();
-    const [forests, setForests] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [forests, setForests] = useState(propForests || []);
+    const [loading, setLoading] = useState(propLoading !== undefined ? propLoading : true);
+    const [error, setError] = useState(propError || null);
+
+    // Update state when props change
+    useEffect(() => {
+        if (propForests) setForests(propForests);
+        if (propLoading !== undefined) setLoading(propLoading);
+        if (propError !== undefined) setError(propError);
+    }, [propForests, propLoading, propError]);
 
 
     const handleExportData = async () => {
@@ -48,14 +55,14 @@ const ForestTable = () => {
 
             // Define CSV headers
             const headers = ['ID', 'Area (ha)', 'NDVI Δ', 'Confidence', 'Carbon (t)', 'Status'];
-            
+
             // Create CSV rows
             const csvRows = [
                 headers.join(','), // Header row
                 ...forests.map(forest => {
                     // Extract numeric value from carbon (remove commas)
                     const carbonValue = forest.carbon ? forest.carbon.replace(/,/g, '') : '0';
-                    
+
                     return [
                         escapeCSV(forest.id || 'N/A'),
                         escapeCSV(typeof forest.area === 'number' ? forest.area.toFixed(2) : forest.area || '0'),
@@ -74,17 +81,17 @@ const ForestTable = () => {
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
-            
+
             // Generate filename with timestamp
             const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
             link.setAttribute('href', url);
             link.setAttribute('download', `forest-registry-${timestamp}.csv`);
             link.style.visibility = 'hidden';
-            
+
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
+
             // Clean up the URL object
             URL.revokeObjectURL(url);
         } catch (err) {
@@ -102,6 +109,8 @@ const ForestTable = () => {
 
     //we are fetching real data from backend
     useEffect(() => {
+        if (propForests) return; // Skip internal fetch if props are provided
+
         const fetchForests = async () => {
             try {
                 setLoading(true);
@@ -110,7 +119,7 @@ const ForestTable = () => {
                 console.log("ForestTable: Full response:", response);
                 console.log("ForestTable: Response data:", response.data);
                 console.log("ForestTable: Response data.forests:", response.data?.forests);
-                
+
                 // Handle both possible response structures
                 let forestsArray = [];
                 if (response && response.success && response.data) {
@@ -139,22 +148,22 @@ const ForestTable = () => {
                     // Response with data as array
                     forestsArray = response.data;
                 }
-                
+
                 console.log("ForestTable: Forests array:", forestsArray);
                 console.log("ForestTable: Found", forestsArray.length, "forests");
-                
-                if(forestsArray.length > 0){
+
+                if (forestsArray.length > 0) {
                     console.log("ForestTable: Processing", forestsArray.length, "forests");
                     // Transform backend data to match component expectations
                     const transformedForests = forestsArray.map((forest, index) => {
                         try {
                             console.log(`ForestTable: Processing forest ${index + 1}:`, forest);
-                            
+
                             // Convert area from square meters to hectares
                             // Handle bigint/string area values
                             const areaValue = forest.area ? (typeof forest.area === 'string' ? parseFloat(forest.area) : Number(forest.area)) : 0;
                             const areaHectares = areaValue > 0 ? (areaValue / 10000).toFixed(2) : '0.00';
-                            
+
                             // Format NDVI - add + sign if positive, handle undefined
                             let ndvi = 'N/A';
                             if (forest.lastNDVI) {
@@ -163,13 +172,13 @@ const ForestTable = () => {
                                     ndvi = ndviValue >= 0 ? `+${ndviValue.toFixed(2)}` : ndviValue.toFixed(2);
                                 }
                             }
-                            
+
                             // Format confidence - add % sign, handle undefined
                             const conf = forest.lastConfidence ? `${parseFloat(forest.lastConfidence).toFixed(1)}%` : 'N/A';
-                            
+
                             // Format carbon credits
                             const carbon = forest.totalCarbonCredits ? forest.totalCarbonCredits.toLocaleString() : '0';
-                            
+
                             // Determine status based on isActive
                             let status = 'ACTIVE';
                             if (!forest.isActive) {
@@ -177,7 +186,7 @@ const ForestTable = () => {
                             } else if (!forest.lastNDVI) {
                                 status = 'ANALYZING';
                             }
-                            
+
                             const transformed = {
                                 id: `FST-${String(forest.forestId).padStart(4, '0')}`, // Format ID like FST-0001
                                 area: parseFloat(areaHectares),
@@ -188,7 +197,7 @@ const ForestTable = () => {
                                 // Keep original data for reference
                                 original: forest
                             };
-                            
+
                             console.log(`ForestTable: Transformed forest ${index + 1}:`, transformed);
                             return transformed;
                         } catch (transformError) {
@@ -205,32 +214,32 @@ const ForestTable = () => {
                             };
                         }
                     });
-                    
+
                     console.log("ForestTable: All transformed forests:", transformedForests);
                     console.log("ForestTable: Setting forests state with", transformedForests.length, "items");
                     setForests(transformedForests);
                     console.log("ForestTable: State set successfully");
-                    
+
                     // Set the latest forest as default selected (most recent by forestId or createdAt)
                     if (transformedForests.length > 0 && transformedForests[0].original) {
                         const latestForest = transformedForests.reduce((latest, current) => {
                             if (!current.original) return latest;
                             if (!latest.original) return current;
-                            
+
                             // Compare by createdAt if available, otherwise by forestId
                             const latestDate = latest.original.createdAt ? new Date(latest.original.createdAt) : null;
                             const currentDate = current.original.createdAt ? new Date(current.original.createdAt) : null;
-                            
+
                             if (latestDate && currentDate) {
                                 return currentDate > latestDate ? current : latest;
                             }
-                            
+
                             // Fallback to forestId
                             const latestId = parseInt(latest.original.forestId || 0);
                             const currentId = parseInt(current.original.forestId || 0);
                             return currentId > latestId ? current : latest;
                         });
-                        
+
                         if (latestForest.original) {
                             console.log("ForestTable: Setting default selected forest:", latestForest.original.forestId);
                             setSelectedForest(latestForest.original);
@@ -274,7 +283,7 @@ const ForestTable = () => {
             enableStars={false}
             className="!p-0 !bg-[#11141a]/80 !h-fit"
             enableTilt={false}
-            setHeight = {200} // 200 px
+            setHeight={200} // 200 px
         >
             <div className="px-5 py-4 border-b border-white/5 flex justify-between items-center relative z-10">
                 <h3 className="text-sm font-medium text-white">Forest Registry</h3>
@@ -313,41 +322,37 @@ const ForestTable = () => {
                                 <td colSpan="6" className="px-5 py-8 text-center text-xs text-gray-500">
                                     No forests registered yet
                                     <br />
-                                    <span className="text-[10px] text-gray-600 mt-1 block">
-                                        (Debug: forests.length = {forests.length}, loading = {String(loading)}, error = {error || 'none'})
-                                    </span>
-                                </td>
+                               </td>
                             </tr>
-                        ) : ( 
+                        ) : (
                             forests.map((forest, i) => {
                                 console.log(`ForestTable: Rendering forest ${i}:`, forest);
                                 return (
-                                <motion.tr
-                                    key={forest.id || `forest-${i}`}
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: i * 0.05 }}
-                                    onClick={() => {
-                                        console.log("ForestTable: Forest clicked:", forest);
-                                        if (forest.original) {
-                                            setSelectedForest(forest.original);
-                                        }
-                                    }}
-                                    className={`hover:bg-white/[0.02] transition-colors cursor-pointer group ${
-                                        selectedForest?.forestId === forest.original?.forestId ? 'bg-emerald-500/10 border-l-2 border-emerald-500' : ''
-                                    }`}
-                                >
-                                    <td className="px-5 py-3 font-mono text-gray-300 group-hover:text-emerald-400 transition-colors">{forest.id || 'N/A'}</td>
-                                    <td className="px-5 py-3 text-gray-400">{typeof forest.area === 'number' ? forest.area.toLocaleString() : String(forest.area || '0')}</td>
-                                    <td className={`px-5 py-3 font-mono ${forest.ndvi && forest.ndvi.startsWith('+') ? 'text-emerald-500' : 'text-yellow-500'}`}>
-                                        {forest.ndvi}
-                                    </td>
-                                    <td className="px-5 py-3 text-gray-400">{forest.conf}</td>
-                                    <td className="px-5 py-3 text-right text-white font-medium">{forest.carbon}</td>
-                                    <td className="px-5 py-3 text-right">
-                                        <StatusBadge status={forest.status} />
-                                    </td>
-                                </motion.tr>
+                                    <motion.tr
+                                        key={forest.id || `forest-${i}`}
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.05 }}
+                                        onClick={() => {
+                                            console.log("ForestTable: Forest clicked:", forest);
+                                            if (forest.original) {
+                                                setSelectedForest(forest.original);
+                                            }
+                                        }}
+                                        className={`hover:bg-white/[0.02] transition-colors cursor-pointer group ${selectedForest?.forestId === forest.original?.forestId ? 'bg-emerald-500/10 border-l-2 border-emerald-500' : ''
+                                            }`}
+                                    >
+                                        <td className="px-5 py-3 font-mono text-gray-300 group-hover:text-emerald-400 transition-colors">{forest.id || 'N/A'}</td>
+                                        <td className="px-5 py-3 text-gray-400">{typeof forest.area === 'number' ? forest.area.toLocaleString() : String(forest.area || '0')}</td>
+                                        <td className={`px-5 py-3 font-mono ${forest.ndvi && forest.ndvi.startsWith('+') ? 'text-emerald-500' : 'text-yellow-500'}`}>
+                                            {forest.ndvi}
+                                        </td>
+                                        <td className="px-5 py-3 text-gray-400">{forest.conf}</td>
+                                        <td className="px-5 py-3 text-right text-white font-medium">{forest.carbon}</td>
+                                        <td className="px-5 py-3 text-right">
+                                            <StatusBadge status={forest.status} />
+                                        </td>
+                                    </motion.tr>
                                 );
                             })
                         )}

@@ -5,9 +5,8 @@ const { UsersModel } = require('../models/UserModel');
 const { db } = require('../config/db');
 const { eq, and, or, isNull, ilike } = require('drizzle-orm');
 
-/**
- * Send an invitation to join an organization
- */
+
+//sends invitation
 async function sendInvitation(req, res) {
     try {
         const { id } = req.params; // organisation ID
@@ -149,14 +148,9 @@ async function acceptInvitation(req, res) {
         if (invitation[0].status !== 'pending') {
             return res.status(400).json({ error: `Invitation has already been ${invitation[0].status}` });
         }
-
-        // TODO: Check token balance and deduct 20 tokens
-        // This will be handled by the frontend before calling this endpoint
-        // For now, we'll just proceed
-
         // Update invitation status
         await db.update(InvitationModel)
-            .set({ 
+            .set({
                 status: 'accepted',
                 respondedAt: new Date()
             })
@@ -169,9 +163,8 @@ async function acceptInvitation(req, res) {
             role: invitation[0].role
         });
 
-        // Mark notification as read
-        await db.update(NotificationModel)
-            .set({ read: true })
+        // Delete notification
+        await db.delete(NotificationModel)
             .where(and(
                 eq(NotificationModel.relatedEntityId, parseInt(id)),
                 eq(NotificationModel.relatedEntityType, 'invitation')
@@ -221,20 +214,16 @@ async function rejectInvitation(req, res) {
             return res.status(400).json({ error: `Invitation has already been ${invitation[0].status}` });
         }
 
-        // TODO: Check token balance and deduct 20 tokens
-        // This will be handled by the frontend before calling this endpoint
-
-        // Update invitation status
+       // Update invitation status
         await db.update(InvitationModel)
-            .set({ 
+            .set({
                 status: 'rejected',
                 respondedAt: new Date()
             })
             .where(eq(InvitationModel.id, parseInt(id)));
 
-        // Mark notification as read
-        await db.update(NotificationModel)
-            .set({ read: true })
+        // Delete notification
+        await db.delete(NotificationModel)
             .where(and(
                 eq(NotificationModel.relatedEntityId, parseInt(id)),
                 eq(NotificationModel.relatedEntityType, 'invitation')
@@ -252,9 +241,8 @@ async function rejectInvitation(req, res) {
     }
 }
 
-/**
- * Get all invitations for a user
- */
+//Gets user invitations
+
 async function getUserInvitations(req, res) {
     try {
         const userAddress = req.walletAddress || req.query.address;
@@ -273,10 +261,10 @@ async function getUserInvitations(req, res) {
             createdAt: InvitationModel.createdAt,
             respondedAt: InvitationModel.respondedAt
         })
-        .from(InvitationModel)
-        .innerJoin(OrganisationModel, eq(InvitationModel.organisationId, OrganisationModel.id))
-        .where(eq(InvitationModel.inviteeAddress, userAddress.toLowerCase()))
-        .orderBy(InvitationModel.createdAt);
+            .from(InvitationModel)
+            .innerJoin(OrganisationModel, eq(InvitationModel.organisationId, OrganisationModel.id))
+            .where(eq(InvitationModel.inviteeAddress, userAddress.toLowerCase()))
+            .orderBy(InvitationModel.createdAt);
 
         return res.status(200).json({ invitations });
     } catch (error) {
