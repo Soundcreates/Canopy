@@ -1,4 +1,13 @@
 import { getApiBaseUrl } from '../utils/apiConfig';
+import { 
+    getCachedData, 
+    setCachedData, 
+    removeCachedData,
+    getForestsCacheKey,
+    getForestCacheKey,
+    getNDVIDataCacheKey,
+    getNFTDataCacheKey
+} from '../utils/cache';
 
 const API_BASE_URL = getApiBaseUrl();
 console.log("API Base URL: ", API_BASE_URL);
@@ -106,6 +115,14 @@ export const registerForest = async (area, geoHash, account) => {
 
         console.log("Response is ok");
         const data = await response.json();
+        
+        // Invalidate forests cache when a new forest is registered
+        if (account) {
+            const cacheKey = getForestsCacheKey(account);
+            removeCachedData(cacheKey);
+            console.log("Forests cache invalidated after registration");
+        }
+        
         return data;
     } catch (error) {
         console.error('Error registering forest from frontend:', error);
@@ -258,12 +275,23 @@ export const startNDVIMonitoring = (
  * @param {number} forest_id - Forest ID
  * @returns {Promise<Object>} NDVI data from the database
  */
-export const getNDVIData = async (forest_id) => {
+export const getNDVIData = async (forest_id, useCache = true) => {
     console.log("ForestAPI: Fetching NDVI data for forest ID:", forest_id);
     
     if (!forest_id) {
         console.log("ForestAPI: Error - Forest ID is required");
         throw new Error('Forest ID is required');
+    }
+
+    const cacheKey = getNDVIDataCacheKey(forest_id);
+    
+    // Try to get from cache first
+    if (useCache) {
+        const cachedData = getCachedData(cacheKey);
+        if (cachedData) {
+            console.log("NDVI data loaded from cache");
+            return cachedData;
+        }
     }
 
     try {
@@ -338,12 +366,18 @@ export const getNDVIData = async (forest_id) => {
         }
 
         console.log("ForestAPI: NDVI data retrieved successfully");
-        return {
+        const ndviData = {
             forestId: forest.forestId,
             lastNDVI: forest.lastNDVI,
             lastVerificationDate: forest.lastVerificationDate,
             forest: forest
         };
+        
+        // Cache the NDVI data
+        setCachedData(cacheKey, ndviData);
+        console.log("NDVI data cached for future use");
+        
+        return ndviData;
     } catch (error) {
         console.log("ForestAPI: Error fetching NDVI data:", error);
         throw error;
@@ -355,7 +389,7 @@ export const getNDVIData = async (forest_id) => {
  * @param {Object} forest - Forest object with latestTokenId and latestMetadataUri
  * @returns {Promise<Object>} NFT data including metadata from IPFS and contract data
  */
-export const getForestNFTData = async (forest) => {
+export const getForestNFTData = async (forest, useCache = true) => {
     console.log("ForestAPI: Fetching NFT data for forest:", forest.forestId);
     
     if (!forest) {
@@ -366,6 +400,17 @@ export const getForestNFTData = async (forest) => {
     if (!forest.latestTokenId) {
         console.log("ForestAPI: No token ID found for forest:", forest.forestId);
         return null; // No NFT minted yet
+    }
+
+    const cacheKey = getNFTDataCacheKey(forest.forestId);
+    
+    // Try to get from cache first
+    if (useCache) {
+        const cachedData = getCachedData(cacheKey);
+        if (cachedData !== null) {
+            console.log("NFT data loaded from cache");
+            return cachedData;
+        }
     }
 
     try {
@@ -407,7 +452,7 @@ export const getForestNFTData = async (forest) => {
             }
         }
 
-        return {
+        const nftData = {
             tokenId: forest.latestTokenId,
             forestId: forest.forestId,
             metadataUri: forest.latestMetadataUri,
@@ -423,13 +468,19 @@ export const getForestNFTData = async (forest) => {
             txHash: forest.txHash,
             isActive: forest.isActive
         };
+        
+        // Cache the NFT data
+        setCachedData(cacheKey, nftData);
+        console.log("NFT data cached for future use");
+        
+        return nftData;
     } catch (error) {
         console.log("ForestAPI: Error fetching NFT data:", error);
         throw error;
     }
 };
 
-export const getForests = async () => {
+export const getForests = async (useCache = true) => {
     console.log("Getting forests");
     try {
         // Get account from localStorage auth data
@@ -459,6 +510,18 @@ export const getForests = async () => {
             console.log("Wallet not connected");
             throw new Error('Wallet not connected. Please sign in first.');
         }
+        
+        const cacheKey = getForestsCacheKey(account);
+        
+        // Try to get from cache first
+        if (useCache) {
+            const cachedData = getCachedData(cacheKey);
+            if (cachedData) {
+                console.log("Forests loaded from cache");
+                return { success: true, data: cachedData, fromCache: true };
+            }
+        }
+        
         console.log("Fetching stored auth (sig and msg) from localstorage");
         const storedAuth = localStorage.getItem(`canopy_auth_${account.toLowerCase()}`);
         console.log("Stored auth: ", storedAuth);
@@ -492,6 +555,7 @@ export const getForests = async () => {
         const authHeader = `Bearer ${address}:${message}:${signature}`;
         console.log("Authorization header: ", authHeader);
 
+        console.log("Fetching forests from API");
         const response = await fetch(`${API_BASE_URL}/api/forests/getForests`, {
             method: 'GET',
             headers: {
@@ -515,7 +579,12 @@ export const getForests = async () => {
         console.log("ForestAPI: Data type:", typeof data);
         console.log("ForestAPI: Data.forests:", data.forests);
         console.log("ForestAPI: Is data.forests an array?", Array.isArray(data.forests));
-        return {success: true, data: data};
+        
+        // Cache the forests data
+        setCachedData(cacheKey, data);
+        console.log("Forests data cached for future use");
+        
+        return {success: true, data: data, fromCache: false};
     } catch (error) {
         console.error('Error getting forests:', error);
         throw error;

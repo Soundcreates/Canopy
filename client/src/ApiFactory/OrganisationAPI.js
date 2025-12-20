@@ -1,10 +1,28 @@
 import { getApiBaseUrl } from "../utils/apiConfig";
+import { 
+    getCachedData, 
+    setCachedData, 
+    removeCachedData,
+    getOrganisationsCacheKey,
+    getOrganisationCacheKey
+} from "../utils/cache";
 
 const API_BASE_URL = getApiBaseUrl();
 console.log("API_BASE_URL", API_BASE_URL);
 
-const fetchOrganisationById = async (account, orgId) => {
+const fetchOrganisationById = async (account, orgId, useCache = true) => {
     console.log("Getting organisation by id from frontend");
+
+    const cacheKey = getOrganisationCacheKey(orgId, account);
+    
+    // Try to get from cache first
+    if (useCache) {
+        const cachedData = getCachedData(cacheKey);
+        if (cachedData) {
+            console.log("Organisation loaded from cache");
+            return cachedData;
+        }
+    }
 
     try {
         // Add address as query parameter if provided (GET requests cannot have body)
@@ -12,6 +30,7 @@ const fetchOrganisationById = async (account, orgId) => {
             ? `${API_BASE_URL}/api/organisations/${orgId}?address=${encodeURIComponent(account)}`
             : `${API_BASE_URL}/api/organisations/${orgId}`;
         
+        console.log("Fetching organisation from API");
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -33,6 +52,11 @@ const fetchOrganisationById = async (account, orgId) => {
         }
 
         const data = await response.json();
+        
+        // Cache the organisation data
+        setCachedData(cacheKey, data);
+        console.log("Organisation cached for future use");
+        
         return data;
     } catch (error) {
         console.error("Error getting organisation by id from frontend:", error);
@@ -44,7 +68,7 @@ const fetchOrganisationById = async (account, orgId) => {
     }
 }
 
-const getOrganisations = async (account) => {
+const getOrganisations = async (account, useCache = true) => {
     console.log("Getting organisations from frontend");
     try {
         if (!account) {
@@ -52,7 +76,19 @@ const getOrganisations = async (account) => {
             return { organisations: [] };
         }
 
+        const cacheKey = getOrganisationsCacheKey(account);
+        
+        // Try to get from cache first
+        if (useCache) {
+            const cachedData = getCachedData(cacheKey);
+            if (cachedData) {
+                console.log("Organisations loaded from cache");
+                return cachedData;
+            }
+        }
+
         const url = `${API_BASE_URL}/api/organisations?address=${encodeURIComponent(account)}`;
+        console.log("Fetching organisations from API");
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -75,6 +111,11 @@ const getOrganisations = async (account) => {
 
         const data = await response.json();
         console.log("Organisations fetched: ", data);
+        
+        // Cache the organisations data
+        setCachedData(cacheKey, data);
+        console.log("Organisations cached for future use");
+        
         return data;
         
     } catch (error) {

@@ -49,6 +49,9 @@ const ProfilePage = () => {
         const response = await getUserProfile(address);
         if (response && response.success && response.userProfile) {
           setDisplayName(response.userProfile.displayName || "0xUser...Dev");
+          if (response.fromCache) {
+            console.log("Profile loaded from cache - fast! 🚀");
+          }
         }
       } catch (err) {
         console.error("Error fetching profile", err.message || err);
