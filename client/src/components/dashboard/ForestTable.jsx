@@ -26,6 +26,72 @@ const ForestTable = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+
+    const handleExportData = async () => {
+        try {
+            // Check if there's data to export
+            if (!forests || forests.length === 0) {
+                alert('No forest data available to export');
+                return;
+            }
+
+            // CSV escape function to handle commas, quotes, and newlines
+            const escapeCSV = (value) => {
+                if (value === null || value === undefined) return '';
+                const stringValue = String(value);
+                // If value contains comma, quote, or newline, wrap in quotes and escape quotes
+                if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                    return `"${stringValue.replace(/"/g, '""')}"`;
+                }
+                return stringValue;
+            };
+
+            // Define CSV headers
+            const headers = ['ID', 'Area (ha)', 'NDVI Δ', 'Confidence', 'Carbon (t)', 'Status'];
+            
+            // Create CSV rows
+            const csvRows = [
+                headers.join(','), // Header row
+                ...forests.map(forest => {
+                    // Extract numeric value from carbon (remove commas)
+                    const carbonValue = forest.carbon ? forest.carbon.replace(/,/g, '') : '0';
+                    
+                    return [
+                        escapeCSV(forest.id || 'N/A'),
+                        escapeCSV(typeof forest.area === 'number' ? forest.area.toFixed(2) : forest.area || '0'),
+                        escapeCSV(forest.ndvi || 'N/A'),
+                        escapeCSV(forest.conf || 'N/A'),
+                        escapeCSV(carbonValue),
+                        escapeCSV(forest.status || 'N/A')
+                    ].join(',');
+                })
+            ];
+
+            // Combine all rows into CSV string
+            const csvContent = csvRows.join('\n');
+
+            // Create blob and download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            // Generate filename with timestamp
+            const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+            link.setAttribute('href', url);
+            link.setAttribute('download', `forest-registry-${timestamp}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Clean up the URL object
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Error exporting CSV:', err);
+            alert('Failed to export data. Please try again.');
+        }
+    }
     // Debug: Log state changes
     useEffect(() => {
         console.log("ForestTable: State changed - forests:", forests);
@@ -212,7 +278,7 @@ const ForestTable = () => {
         >
             <div className="px-5 py-4 border-b border-white/5 flex justify-between items-center relative z-10">
                 <h3 className="text-sm font-medium text-white">Forest Registry</h3>
-                <button className="text-xs text-emerald-500 hover:text-emerald-400 font-mono transition-colors">
+                <button className="text-xs text-emerald-500 hover:text-emerald-400 font-mono transition-colors" onClick={handleExportData}>
                     EXPORT DATA
                 </button>
             </div>

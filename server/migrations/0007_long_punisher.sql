@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "displayName" varchar DEFAULT 'Anonymous User';

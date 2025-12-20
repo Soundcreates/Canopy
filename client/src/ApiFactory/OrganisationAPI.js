@@ -1,4 +1,3 @@
-import { showToast } from "../utils/toast";
 import { getApiBaseUrl } from "../utils/apiConfig";
 
 const API_BASE_URL = getApiBaseUrl();
@@ -34,15 +33,12 @@ const fetchOrganisationById = async (account, orgId) => {
         }
 
         const data = await response.json();
-        showToast.success("Organisation fetched successfully ");
         return data;
     } catch (error) {
         console.error("Error getting organisation by id from frontend:", error);
         // Don't show toast for connection errors (server might not be running)
         if (error.message && error.message.includes('Failed to fetch')) {
             console.warn("Backend server appears to be offline. Please ensure the server is running on port 3000.");
-        } else {
-            showToast.error("Error getting organisation details", error.message || error);
         }
         throw error;
     }
@@ -86,8 +82,6 @@ const getOrganisations = async (account) => {
         // Don't show toast for connection errors (server might not be running)
         if (error.message && error.message.includes('Failed to fetch')) {
             console.warn("Backend server appears to be offline. Please ensure the server is running on port 3000.");
-        } else {
-            showToast.error("Error getting organisations", error.message || error);
         }
         throw error; // Re-throw so calling code knows it failed
     }

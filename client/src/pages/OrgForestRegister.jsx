@@ -10,7 +10,6 @@ import mapboxgl from 'mapbox-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import * as turf from '@turf/turf';
 import { useNavigate, useParams } from 'react-router-dom';
-import { showToast } from '../utils/toast';
 import { fetchOrganisationById } from '../ApiFactory/OrganisationAPI';
 
 
@@ -78,9 +77,7 @@ const OrgForestRegister = () => {
                 console.error('Error fetching the orgs from orgforestregister.jsx:', err);
                 setOrgLoading(false);
                 // Only show error if it's not a connection refused (server might not be running)
-                if (err.message && !err.message.includes('Failed to fetch') && !err.message.includes('ERR_CONNECTION_REFUSED')) {
-                    showToast.error('Failed to load organization details');
-                }
+                // Error handling removed - no toast
             }
         };
 
@@ -215,11 +212,10 @@ const OrgForestRegister = () => {
     };
 
     const handleSubmit = async () => {
-        if (!plotData) { showToast.warning('Draw a plot first.'); return; }
+        if (!plotData) { return; }
         setIsSubmitting(true);
         // Simulate org submission
         setTimeout(() => {
-            showToast.success('Proposal Created! Voting initiated.');
             setIsSubmitting(false);
             navigate('/organisation');
         }, 1500);

@@ -11,7 +11,6 @@ import mapboxgl from 'mapbox-gl';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import * as turf from '@turf/turf';
 import { useNavigate } from 'react-router-dom';
-import { showToast } from '../utils/toast';
 
 //if you need to run the mapbox map, u need to have a mapbox account which provides a public access token
 //mapbox is free for limited usage , just need to signup using a card
@@ -417,17 +416,14 @@ const ForestRegister = () => {
    */
   const handleSubmit = async () => {
     if (!plotData) {
-      showToast.warning('Please draw a plot on the map before submitting.');
       return;
     }
 
     if (!formData.name.trim()) {
-      showToast.warning('Please enter a forest name.');
       return;
     }
 
     if (!account) {
-      showToast.error('Please connect your wallet first.');
       return;
     }
 
@@ -482,12 +478,10 @@ const ForestRegister = () => {
 
       if (!forestId) {
         console.error('Forest ID not found in response:', response);
-        showToast.error('Forest registration succeeded but forest ID not found in response');
         throw new Error('Forest registration succeeded but forest ID not found in response');
       }
 
       console.log('Forest ID received:', forestId);
-      showToast.info(`Forest registered! Starting NDVI computation...`);
 
       // Immediately call NDVI endpoint after registration
       console.log('Calling NDVI endpoint immediately after registration');
@@ -506,7 +500,6 @@ const ForestRegister = () => {
         console.log('Initial NDVI computation completed successfully');
       } catch (ndviError) {
         console.error('Error calling initial NDVI:', ndviError);
-        showToast.warning('Initial NDVI computation failed. Monitoring will retry later.');
         // Don't throw - allow registration to succeed even if initial NDVI fails
         // The monitoring will retry later
       }
@@ -550,7 +543,6 @@ const ForestRegister = () => {
       setPlotData(null);
 
       // Navigate to dashboard
-      showToast.success('Registration complete! Redirecting to dashboard...');
       setTimeout(() => {
         navigate('/dashboard');
       }, 1500);
@@ -558,9 +550,6 @@ const ForestRegister = () => {
     } catch (error) {
       console.error('Error submitting forest registration:', error);
       setIsSubmitting(false);
-
-      // Toast notification already shown by registerForest function
-      // Just log here for debugging
     } finally {
       setIsSubmitting(false);
     }

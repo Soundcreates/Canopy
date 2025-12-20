@@ -31,7 +31,12 @@ async function requireWalletAuth(req, res, next) {
         message: "Expected format: Bearer <address>:<message>:<signature>"
       });
     }
-  } 
+  } else if(req.query && req.query.address) {
+    console.log("Taking address from query");
+     address = req.query.address;
+     
+     console.log("Address from query:", address);
+  }
   // No auth data found
   else {
     return res.status(401).json({
