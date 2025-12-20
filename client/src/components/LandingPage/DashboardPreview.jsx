@@ -121,15 +121,7 @@ const DashboardPreview = () => {
                 </motion.div>
             </div>
 
-            <div className="mt-12 overflow-hidden">
-                <CurvedLoop
-                    marqueeText="Made with love "
-                    className="text-emerald-500/20 font-mono tracking-tighter"
-                    speed={3}
-                    curveAmount={100}
-                />
-            </div>
-        </section>
+       </section>
     );
 };
 

@@ -6,6 +6,10 @@ const ndviRouter = require("./NDVIRouter");
 const lulcRouter = require("./LULCRouter");
 const organisationRouter = require("./OrganisationRouter");
 const profileRouter = require("./ProfileRouter");
+const registrationSessionRouter = require("./RegistrationSessionRouter");
+const invitationRouter = require("./InvitationRouter");
+const notificationRouter = require("./NotificationRouter");
+const userRouter = require("./UserRouter");
 
 // Auth routes
 router.use("/auth", authRouter);
@@ -24,5 +28,17 @@ router.use("/organisations", organisationRouter);
 
 //Profile routes
 router.use('/profile', profileRouter);
+
+// Registration Session routes
+router.use('/registration-sessions', registrationSessionRouter);
+
+// Invitation routes
+router.use("/invitations", invitationRouter);
+
+// Notification routes
+router.use("/notifications", notificationRouter);
+
+// User routes
+router.use("/users", userRouter);
 
 module.exports = router;

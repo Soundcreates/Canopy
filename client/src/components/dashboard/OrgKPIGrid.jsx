@@ -4,8 +4,8 @@ import { MagicCard } from './MagicBento';
 const KPICard = ({ title, value, unit, change, trend = 'neutral' }) => (
     <MagicCard
         enableStars={false}
-        enableTilt={true}
-        enableMagnetism={true}
+        enableTilt={false}
+        enableMagnetism={false}
         className="group !p-5 !bg-[#11141a]/80"
     >
         <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-emerald-500/0 via-emerald-500/50 to-emerald-500/0 opacity-50 group-hover:opacity-100 transition-opacity"></div>

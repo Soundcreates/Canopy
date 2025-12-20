@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useWallet } from "../../contexts/WalletContext";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import NotificationDropdown from "./NotificationDropdown";
 
 const TopNav = () => {
   const { account, isConnected } = useWallet();
@@ -70,6 +71,9 @@ const TopNav = () => {
 
       {/* Right: Wallet & Network */}
       <div className="flex items-center gap-4">
+        {/* Notifications */}
+        {isConnected && <NotificationDropdown />}
+
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded border border-purple-500/20 bg-purple-500/5">
           <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
           <span className="text-xs font-mono text-purple-400">ETH SEPOLIA</span>

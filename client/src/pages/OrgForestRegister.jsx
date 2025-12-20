@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 import { motion } from 'framer-motion';
@@ -11,6 +11,8 @@ import MapboxDraw from '@mapbox/mapbox-gl-draw';
 import * as turf from '@turf/turf';
 import { useNavigate, useParams } from 'react-router-dom';
 import { fetchOrganisationById } from '../ApiFactory/OrganisationAPI';
+import { createRegistrationSession } from '../ApiFactory/RegistrationSessionAPI';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 
 //if you need to run the mapbox map, u need to have a mapbox account which provides a public access token
@@ -57,6 +59,15 @@ const OrgForestRegister = () => {
     const [authStatus, setAuthStatus] = useState(null);
     const [organisation, setOrganisation] = useState(null);
     const [orgLoading, setOrgLoading] = useState(false);
+    const [sessionId, setSessionId] = useState(null);
+    const [isOwner, setIsOwner] = useState(false);
+    
+    // Determine if current user is owner
+    const checkIsOwner = useMemo(() => {
+        if (!organisation || !account) return false;
+        return organisation.owner?.toLowerCase() === account.toLowerCase() || 
+               organisation.role === 'owner';
+    }, [organisation, account]);
     useEffect(() => {
         if (!orgId) return;
 
@@ -84,14 +95,76 @@ const OrgForestRegister = () => {
         fetchOrg();
     }, [orgId, account]); // Include both dependencies - account will be null initially, then string
 
-    // Org Voting Mock Data
-    const [votingMembers, setVotingMembers] = useState([
-        { id: 1, name: 'Alice Walker', role: 'Owner', status: 'VOTED', avatar: 'https://i.pravatar.cc/150?u=a' },
-        { id: 2, name: 'Bob Smith', role: 'Member', status: 'VOTED', avatar: 'https://i.pravatar.cc/150?u=b' },
-        { id: 3, name: 'Charlie Day', role: 'Member', status: 'PENDING', avatar: 'https://i.pravatar.cc/150?u=c' },
-        { id: 4, name: 'Danaerys T.', role: 'Member', status: 'PENDING', avatar: 'https://i.pravatar.cc/150?u=d' },
-        { id: 5, name: 'Elon M.', role: 'Member', status: 'REJECTED', avatar: 'https://i.pravatar.cc/150?u=e' },
-    ]);
+    // Create registration session when owner loads page
+    useEffect(() => {
+        if (!orgId || !account || !organisation || !checkIsOwner) return;
+        if (sessionId) return; // Already created
+
+        const createSession = async () => {
+            try {
+                console.log("Creating registration session for owner");
+                const response = await createRegistrationSession(parseInt(orgId), account);
+                if (response.success && response.session) {
+                    setSessionId(response.session.sessionId);
+                    setIsOwner(true);
+                    console.log("Registration session created:", response.session.sessionId);
+                }
+            } catch (err) {
+                console.error("Error creating registration session:", err);
+            }
+        };
+
+        createSession();
+    }, [orgId, account, organisation, checkIsOwner, sessionId]);
+
+    // Initialize WebSocket connection
+    const {
+        isConnected,
+        plotData: wsPlotData,
+        votes,
+        members: wsMembers,
+        votingStatus,
+        sendPlotUpdate,
+        submitVote
+    } = useWebSocket(sessionId, parseInt(orgId), account, isOwner);
+
+    // Update plot data from WebSocket
+    useEffect(() => {
+        if (wsPlotData && !isOwner) {
+            // If not owner, update plot from WebSocket
+            setPlotData(wsPlotData);
+            // Update map if it exists
+            if (mapRef.current && drawRef.current && wsPlotData.geojson) {
+                drawRef.current.deleteAll();
+                drawRef.current.add(wsPlotData.geojson);
+            }
+        }
+    }, [wsPlotData, isOwner]);
+
+    // Get voting members from organization and WebSocket
+    const votingMembers = useMemo(() => {
+        if (!organisation?.members) return [];
+        
+        return organisation.members.map(member => {
+            const vote = votes.get(member.userAddress);
+            const isConnected = wsMembers.some(m => m.address === member.userAddress);
+            
+            let status = 'PENDING';
+            if (vote) {
+                status = vote.vote === 'approve' ? 'VOTED' : 'REJECTED';
+            }
+            
+            return {
+                id: member.id || member.userAddress,
+                name: member.userAddress?.slice(0, 6) + '...' + member.userAddress?.slice(-4) || 'Unknown',
+                address: member.userAddress,
+                role: member.role === 'owner' ? 'Owner' : 'Member',
+                status: status,
+                isConnected: isConnected,
+                avatar: `https://i.pravatar.cc/150?u=${member.userAddress}`
+            };
+        });
+    }, [organisation?.members, votes, wsMembers]);
 
     // Check authentication
     useEffect(() => {
@@ -198,12 +271,19 @@ const OrgForestRegister = () => {
         draw.deleteAll();
         draw.add(squareFeature);
 
-        setPlotData({
+        const newPlotData = {
             geojson: squareFeature,
             areaSqMeters: turf.area(squareFeature),
             centroid: { lng: centerLng, lat: centerLat },
             geoHash: `${(centerLng - half).toFixed(6)},${(centerLng + half).toFixed(6)},${(centerLat - half).toFixed(6)},${(centerLat + half).toFixed(6)}`
-        });
+        };
+
+        setPlotData(newPlotData);
+
+        // Broadcast plot update via WebSocket (only if owner)
+        if (isOwner && isConnected && sendPlotUpdate) {
+            sendPlotUpdate(newPlotData);
+        }
     };
 
     const toggleDrawing = () => {
@@ -213,12 +293,35 @@ const OrgForestRegister = () => {
 
     const handleSubmit = async () => {
         if (!plotData) { return; }
+        if (!votingStatus || votingStatus.result !== 'approved') {
+            console.log('Voting not complete or not approved yet');
+            return;
+        }
+        
         setIsSubmitting(true);
-        // Simulate org submission
-        setTimeout(() => {
+        
+        try {
+            // DAO contract voting is now integrated:
+            // 1. On-chain proposal is created automatically when room is created
+            // 2. On-chain votes are cast automatically when users vote in real-time
+            // 3. Proposal ID is available in votingStatus for execution if needed
+            
+            console.log('Voting approved, proceeding with registration...');
+            console.log('Plot data:', plotData);
+            console.log('Form data:', formData);
+            
+            // Simulate registration process
+            // In production, this would call the forest registration API
+            // which would then interact with the smart contract
+            
+            setTimeout(() => {
+                setIsSubmitting(false);
+                navigate('/organisation');
+            }, 2000);
+        } catch (error) {
+            console.error('Error submitting proposal:', error);
             setIsSubmitting(false);
-            navigate('/organisation');
-        }, 1500);
+        }
     };
 
     const [formData, setFormData] = useState({ name: '', description: '', type: 'Tropical Rainforest' });
@@ -309,7 +412,14 @@ const OrgForestRegister = () => {
                     <div className="bg-[#11141a]/90 backdrop-blur-md border border-white/10 rounded-sm p-5 shadow-lg flex-1 flex flex-col min-h-0 overflow-hidden">
                         <div className="flex justify-between items-center border-b border-white/5 pb-3">
                             <h2 className="text-xs font-mono text-emerald-500 uppercase tracking-wider">DAO Consensus</h2>
-                            <div className="text-[10px] text-gray-500 font-mono">2/5 VOTED</div>
+                            <div className="flex items-center gap-2">
+                                {isConnected && (
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                )}
+                                <div className="text-[10px] text-gray-500 font-mono">
+                                    {votingStatus ? `${votingStatus.votesCount}/${votingStatus.totalMembers} VOTED` : '0/0 VOTED'}
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex-1 overflow-y-auto scrollbar-hide py-3 space-y-2">
@@ -330,11 +440,32 @@ const OrgForestRegister = () => {
                                             </div>
                                         </div>
                                     </div>
-                                    <div className={`text-[10px] font-mono px-2 py-0.5 rounded border ${member.status === 'VOTED' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
-                                        member.status === 'REJECTED' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
-                                            'bg-white/5 text-gray-500 border-white/10'
-                                        }`}>
-                                        {member.status}
+                                    <div className="flex items-center gap-2">
+                                        {member.isConnected && (
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                        )}
+                                        <div className={`text-[10px] font-mono px-2 py-0.5 rounded border ${member.status === 'VOTED' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' :
+                                            member.status === 'REJECTED' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                                                'bg-white/5 text-gray-500 border-white/10'
+                                            }`}>
+                                            {member.status}
+                                        </div>
+                                        {!isOwner && member.status === 'PENDING' && member.role !== 'Owner' && (
+                                            <div className="flex gap-1">
+                                                <button
+                                                    onClick={() => submitVote('approve')}
+                                                    className="px-2 py-0.5 text-[10px] bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 rounded"
+                                                >
+                                                    ✓
+                                                </button>
+                                                <button
+                                                    onClick={() => submitVote('reject')}
+                                                    className="px-2 py-0.5 text-[10px] bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 rounded"
+                                                >
+                                                    ✗
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -344,11 +475,23 @@ const OrgForestRegister = () => {
                             {/* Progress Bar */}
                             <div className="flex justify-between text-[10px] text-gray-500 mb-1 font-mono">
                                 <span>CONSENSUS REQUIRED</span>
-                                <span>40%</span>
+                                <span>{votingStatus ? `${Math.round((votingStatus.votesCount / votingStatus.totalMembers) * 100)}%` : '0%'}</span>
                             </div>
                             <div className="h-1 bg-white/10 rounded-full overflow-hidden mb-4">
-                                <div className="h-full bg-emerald-500 w-[40%]"></div>
+                                <div 
+                                    className={`h-full ${votingStatus?.result === 'approved' ? 'bg-emerald-500' : votingStatus?.result === 'rejected' ? 'bg-red-500' : 'bg-emerald-500'}`}
+                                    style={{ width: votingStatus ? `${(votingStatus.votesCount / votingStatus.totalMembers) * 100}%` : '0%' }}
+                                ></div>
                             </div>
+                            {votingStatus?.result && (
+                                <div className={`mb-4 p-2 rounded border text-xs font-mono text-center ${
+                                    votingStatus.result === 'approved' 
+                                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+                                        : 'bg-red-500/10 text-red-400 border-red-500/30'
+                                }`}>
+                                    VOTING {votingStatus.result.toUpperCase()} - {votingStatus.approveVotes} approve, {votingStatus.rejectVotes} reject
+                                </div>
+                            )}
 
                             <button
                                 onClick={handleSubmit}

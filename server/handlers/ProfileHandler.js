@@ -1,6 +1,7 @@
 const { db } = require("../config/db");
 const { eq } = require("drizzle-orm");
 const { UsersModel } = require("../models/UserModel");
+const { tokenService } = require("../utils/tokenService");
 
 async function saveProfile(req, res) {
   console.log("Saving profile from backend");
@@ -31,6 +32,12 @@ async function saveProfile(req, res) {
         .returning();
       
       console.log("User created");
+      
+      // Mint signup bonus (500 tokens) - fire and forget, don't block response
+      tokenService.mintSignupBonus(normalizedAddress).catch(err => {
+        console.error("Error minting signup bonus (non-blocking):", err);
+      });
+      
       return res
         .status(201)
         .json({ message: "User profile created", user: newUser[0] });

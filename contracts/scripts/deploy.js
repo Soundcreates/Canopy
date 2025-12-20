@@ -81,7 +81,7 @@ async function main() {
     const ctk = await ethers.getContractFactory("CTKToken");
     // Deploy with 1,000,000 tokens (using parseEther to handle large numbers safely)
     const initialSupply = ethers.parseEther("1000000");
-    const ctkToken = await ctk.deploy("Canopy Token", "CTK", initialSupply);
+    const ctkToken = await ctk.deploy("Canopy Token", "CTK", initialSupply, ORACLE_ADDRESS);
     await ctkToken.waitForDeployment();
     const ctkTokenAddress = await ctkToken.getAddress();
     console.log("CTKToken deployed to:", ctkTokenAddress);

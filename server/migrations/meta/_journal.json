@@ -57,6 +57,27 @@
       "when": 1766211638272,
       "tag": "0007_long_punisher",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1766223663604,
+      "tag": "0008_unknown_sasquatch",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1766225770975,
+      "tag": "0009_legal_randall_flagg",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1766227679667,
+      "tag": "0010_awesome_shooting_star",
+      "breakpoints": true
     }
   ]
 }
