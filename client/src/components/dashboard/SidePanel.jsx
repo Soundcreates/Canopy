@@ -84,10 +84,10 @@ const SidePanel = () => {
         if (!dateString) return 'N/A';
         try {
             const date = new Date(dateString);
-            return date.toLocaleDateString('en-US', { 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric' 
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
             });
         } catch {
             return dateString;
@@ -104,7 +104,7 @@ const SidePanel = () => {
         // Use Pinata gateway
         return `https://gateway.pinata.cloud/ipfs/${hash}`;
     };
-    
+
     // Get IPFS gateway URL for image
     const getIPFSImageUrl = (imageUri) => {
         if (!imageUri) return null;
@@ -160,8 +160,8 @@ const SidePanel = () => {
                     <>
                         <div className="aspect-square bg-black relative flex items-center justify-center overflow-hidden rounded-sm z-10">
                             {ipfsImageUrl ? (
-                                <img 
-                                    src={ipfsImageUrl} 
+                                <img
+                                    src={ipfsImageUrl}
                                     alt={`Forest ${selectedForest.forestId} NFT`}
                                     className="absolute inset-0 w-full h-full object-cover opacity-90"
                                     onError={(e) => {
@@ -197,7 +197,7 @@ const SidePanel = () => {
 
                         <div className="p-4 relative z-10">
                             <h3 className="text-sm font-medium text-white mb-4">NFT Metadata</h3>
-                            
+
                             {error && (
                                 <div className="mb-4 px-3 py-2 bg-red-500/10 border border-red-500/30 rounded text-xs text-red-400">
                                     {error}
@@ -224,10 +224,10 @@ const SidePanel = () => {
                                         <div className="mt-4 pt-4 border-t border-white/5">
                                             <div className="text-xs text-gray-500 mb-2">IPFS Attributes</div>
                                             {nftData.metadata.attributes.map((attr, idx) => (
-                                                <DetailRow 
+                                                <DetailRow
                                                     key={idx}
-                                                    label={attr.trait_type || 'Attribute'} 
-                                                    value={String(attr.value || 'N/A')} 
+                                                    label={attr.trait_type || 'Attribute'}
+                                                    value={String(attr.value || 'N/A')}
                                                 />
                                             ))}
                                         </div>
@@ -241,7 +241,7 @@ const SidePanel = () => {
 
                             <div className="grid grid-cols-2 gap-2 mt-4">
                                 {ipfsMetadataUrl && (
-                                    <button 
+                                    <button
                                         onClick={() => {
                                             console.log("SidePanel: Opening IPFS URL:", ipfsMetadataUrl);
                                             window.open(ipfsMetadataUrl, '_blank');
@@ -252,7 +252,7 @@ const SidePanel = () => {
                                     </button>
                                 )}
                                 {nftData?.tokenId && contractAddress && (
-                                    <button 
+                                    <button
                                         onClick={() => {
                                             // OpenSea URL format: https://opensea.io/assets/{chain}/{contract_address}/{token_id}
                                             const chain = 'sepolia'; // Change to 'ethereum' for mainnet
