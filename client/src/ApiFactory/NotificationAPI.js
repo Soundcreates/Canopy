@@ -7,7 +7,7 @@ const API_BASE_URL = getApiBaseUrl();
  */
 export const getUserNotifications = async (walletAddress) => {
     try {
-        const response = await fetch(`${API_BASE_URL}/notifications?address=${walletAddress}`, {
+        const response = await fetch(`${API_BASE_URL}/api/notifications?address=${walletAddress}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
@@ -31,7 +31,7 @@ export const getUserNotifications = async (walletAddress) => {
  */
 export const markNotificationRead = async (walletAddress, signature, notificationId) => {
     try {
-        const response = await fetch(`${API_BASE_URL}/notifications/${notificationId}/read`, {
+        const response = await fetch(`${API_BASE_URL}/api/notifications/${notificationId}/read`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -57,7 +57,7 @@ export const markNotificationRead = async (walletAddress, signature, notificatio
  */
 export const markAllNotificationsRead = async (walletAddress, signature) => {
     try {
-        const response = await fetch(`${API_BASE_URL}/notifications/read-all`, {
+        const response = await fetch(`${API_BASE_URL}/api/notifications/read-all`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
