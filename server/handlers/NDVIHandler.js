@@ -88,39 +88,39 @@ async function getNDVI(req, res) {
 
         console.log("Coordinate validation passed");
 
-        // Step 0: Check if the area is built-up using LULC classification
-        // This check happens before NDVI computation to avoid processing built-up areas
-        console.log("Step 0: Checking land classification (built-up vs non-built-up)");
-        try {
-            const lulcClassification = await classifyAOI(min_lat, max_lat, min_lon, max_lon);
-            console.log("LULC Classification result:", lulcClassification);
+        // // Step 0: Check if the area is built-up using LULC classification
+        // // This check happens before NDVI computation to avoid processing built-up areas
+        // console.log("Step 0: Checking land classification (built-up vs non-built-up)");
+        // try {
+        //     const lulcClassification = await classifyAOI(min_lat, max_lat, min_lon, max_lon);
+        //     console.log("LULC Classification result:", lulcClassification);
 
-            if (lulcClassification.is_built_up) {
-                console.log("Area is classified as built-up. Stopping NDVI pipeline.");
-                return res.status(400).json({
-                    error: 'Area is built-up',
-                    message: 'Cannot process NDVI for built-up areas. Only forest/agriculture/plain land is allowed.',
-                    lulc_data: {
-                        is_built_up: lulcClassification.is_built_up,
-                        dominant_land_type: lulcClassification.dominant_land_type,
-                        built_up_percentage: lulcClassification.built_up_percentage,
-                        confidence: lulcClassification.confidence
-                    }
-                });
-            }
-            console.log("Area is non-built-up. Proceeding with NDVI pipeline.");
-        } catch (lulcError) {
-            console.error("Error during LULC classification:", lulcError);
-            // If LULC check fails, we can either:
-            // Option 1: Fail the request (strict) - uncomment to enable
-            // return res.status(502).json({ 
-            //     error: 'LULC classification service unavailable',
-            //     message: lulcError.message 
-            // });
+        //     if (lulcClassification.is_built_up) {
+        //         console.log("Area is classified as built-up. Stopping NDVI pipeline.");
+        //         return res.status(400).json({
+        //             error: 'Area is built-up',
+        //             message: 'Cannot process NDVI for built-up areas. Only forest/agriculture/plain land is allowed.',
+        //             lulc_data: {
+        //                 is_built_up: lulcClassification.is_built_up,
+        //                 dominant_land_type: lulcClassification.dominant_land_type,
+        //                 built_up_percentage: lulcClassification.built_up_percentage,
+        //                 confidence: lulcClassification.confidence
+        //             }
+        //         });
+        //     }
+        //     console.log("Area is non-built-up. Proceeding with NDVI pipeline.");
+        // } catch (lulcError) {
+        //     console.error("Error during LULC classification:", lulcError);
+        //     // If LULC check fails, we can either:
+        //     // Option 1: Fail the request (strict) - uncomment to enable
+        //     // return res.status(502).json({ 
+        //     //     error: 'LULC classification service unavailable',
+        //     //     message: lulcError.message 
+        //     // });
 
-            // Option 2: Log warning but continue (lenient - for development)
-            console.warn("LULC classification failed, but continuing with NDVI pipeline:", lulcError.message);
-        }
+        //     // Option 2: Log warning but continue (lenient - for development)
+        //     console.warn("LULC classification failed, but continuing with NDVI pipeline:", lulcError.message);
+        // }
 
         // Step 2: Fetch satellite data and compute NDVI
         console.log("Step 2: Computing NDVI from satellite data");

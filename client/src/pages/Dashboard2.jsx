@@ -50,7 +50,7 @@ const Dashboard2 = () => {
                     </div>
 
                     {/* Right Pane: Side Panel - Independent Scroll / Fixed Grid */}
-                    <div className="w-[420px] flex-none flex flex-col gap-4 overflow-y-auto scrollbar-hide h-full pb-20">
+                    <div className="hidden md:flex w-[420px] flex-none flex-col gap-4 overflow-y-auto scrollbar-hide h-full pb-20">
                         {/* Sticky wrapper to keep it at top if content is short, 
                              but scrollable if content is long (due to parent overflow-y-auto) */}
                         <div className="flex flex-col gap-4">
