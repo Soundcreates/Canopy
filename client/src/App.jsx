@@ -18,6 +18,7 @@ import CreateOrganisation from './pages/CreateOrganisation'
 import OrganisationMarketplace from './pages/OrganisationMarketplace'
 import OrgForestRegister from './pages/OrgForestRegister'
 import OrganisationAnalytics from './pages/OrganisationAnalytics'
+import InvestPage from './pages/InvestPage'
 
 function App() {
 
@@ -72,6 +73,7 @@ function AnimatedRoutes() {
         <Route path="/marketplace" element={<OrganisationMarketplace />} />
         <Route path="/org/register/:orgId" element={<OrgForestRegister />} />
         <Route path="/organisation/:orgId/analytics" element={<OrganisationAnalytics />} />
+        <Route path="/invest/:orgId" element={<InvestPage />} />
       </Routes>
     </AnimatePresence>
   );

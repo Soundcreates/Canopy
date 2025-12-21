@@ -6,64 +6,68 @@ import { motion } from 'framer-motion';
 import { useOrganisation } from '../contexts/OrganisationContext';
 import { useWallet } from '../contexts/WalletContext';
 
-const OrgCard = ({ org, isOwnerOrMember }) => (
-    <MagicCard className="!p-0 !bg-[#11141a] border border-white/10 group h-full flex flex-col">
-        {/* Banner / Header */}
-        <div className="h-32 bg-gradient-to-br from-emerald-900/20 to-black relative overflow-hidden border-b border-white/5">
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
-            <div className="absolute bottom-4 left-4 z-10 flex items-end gap-3">
-                <div className="w-12 h-12 rounded-lg bg-black/50 backdrop-blur border border-white/10 flex items-center justify-center">
-                    <span className="text-xl font-bold text-white">{org.name.slice(0, 1)}</span>
-                </div>
-            </div>
-        </div>
 
-        {/* Content */}
-        <div className="p-5 flex-1 flex flex-col">
-            <h3 className="text-lg font-medium text-white mb-1 group-hover:text-emerald-400 transition-colors">{org.name}</h3>
-            <div className="flex items-center gap-2 mb-4">
-                <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-gray-400 font-mono border border-white/5">{org.members} MEMBERS</span>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-mono border border-emerald-500/20">VERIFIED</span>
-            </div>
-
-            <p className="text-sm text-gray-500 line-clamp-3 mb-6 flex-1">
-                {org.description}
-            </p>
-
-            {/* Timeline */}
-            <div className="mb-6 space-y-2">
-                <div className="flex justify-between text-xs text-gray-500 font-mono">
-                    <span>PROGRESS</span>
-                    <span>{org.progress}%</span>
-                </div>
-                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${org.progress}%` }}></div>
-                </div>
-                <div className="flex justify-between text-[10px] text-gray-600 font-mono mt-1">
-                    <span>START: {org.startDate}</span>
-                    <span>END: {org.endDate}</span>
+const OrgCard = ({ org, isOwnerOrMember }) => {
+    const navigate = useNavigate();
+    return (
+        <MagicCard className="!p-0 !bg-[#11141a] border border-white/10 group h-full flex flex-col">
+            {/* Banner / Header */}
+            <div className="h-32 bg-gradient-to-br from-emerald-900/20 to-black relative overflow-hidden border-b border-white/5">
+                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+                <div className="absolute bottom-4 left-4 z-10 flex items-end gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-black/50 backdrop-blur border border-white/10 flex items-center justify-center">
+                        <span className="text-xl font-bold text-white">{org.name.slice(0, 1)}</span>
+                    </div>
                 </div>
             </div>
 
-            {/* Actions */}
-            <div className={`grid gap-2 mt-auto ${isOwnerOrMember ? 'grid-cols-1' : 'grid-cols-3'}`}>
-                {!isOwnerOrMember && (
-                    <>
-                        <button className="py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 rounded text-xs font-mono font-medium transition-colors">
-                            INVEST
-                        </button>
-                        <button className="py-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded text-xs font-mono font-medium transition-colors">
-                            BUY
-                        </button>
-                    </>
-                )}
-                <button className="py-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border border-white/10 rounded text-xs font-mono font-medium transition-colors">
-                    DATA
-                </button>
+            {/* Content */}
+            <div className="p-5 flex-1 flex flex-col">
+                <h3 className="text-lg font-medium text-white mb-1 group-hover:text-emerald-400 transition-colors">{org.name}</h3>
+                <div className="flex items-center gap-2 mb-4">
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-gray-400 font-mono border border-white/5">{org.members} MEMBERS</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 font-mono border border-emerald-500/20">VERIFIED</span>
+                </div>
+
+                <p className="text-sm text-gray-500 line-clamp-3 mb-6 flex-1">
+                    {org.description}
+                </p>
+
+                {/* Timeline */}
+                <div className="mb-6 space-y-2">
+                    <div className="flex justify-between text-xs text-gray-500 font-mono">
+                        <span>PROGRESS</span>
+                        <span>{org.progress}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${org.progress}%` }}></div>
+                    </div>
+                    <div className="flex justify-between text-[10px] text-gray-600 font-mono mt-1">
+                        <span>START: {org.startDate}</span>
+                        <span>END: {org.endDate}</span>
+                    </div>
+                </div>
+
+                {/* Actions */}
+                <div className={`grid gap-2 mt-auto ${isOwnerOrMember ? 'grid-cols-1' : 'grid-cols-3'}`}>
+                    {!isOwnerOrMember && (
+                        <>
+                            <button className="py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 rounded text-xs font-mono font-medium transition-colors" onClick={() => navigate(`/invest/${org.id}`)}>
+                                INVEST
+                            </button>
+                            <button className="py-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded text-xs font-mono font-medium transition-colors">
+                                BUY
+                            </button>
+                        </>
+                    )}
+                    <button onClick = {() => navigate(`/organisation/${org.id}/analytics`)} className="py-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white border border-white/10 rounded text-xs font-mono font-medium transition-colors">
+                        DATA
+                    </button>
+                </div>
             </div>
-        </div>
-    </MagicCard>
-);
+        </MagicCard>
+    );
+}
 
 const OrganisationMarketplace = () => {
     const navigate = useNavigate();
@@ -83,7 +87,7 @@ const OrganisationMarketplace = () => {
             // Load marketplace organizations
             const marketplaceData = await getMarketplaceOrganisations();
             const marketplaceOrgs = marketplaceData.organisations || [];
-            
+
             // Load user's organizations if wallet is connected
             let userOrgIds = [];
             if (account) {

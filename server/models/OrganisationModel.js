@@ -1,6 +1,6 @@
 const { pgTable, timestamp, varchar, boolean, integer, bigint, foreignKey } = require('drizzle-orm/pg-core');
 
-const {UsersModel} = require('./UserModel');
+const { UsersModel } = require('./UserModel');
 
 const OrganisationModel = pgTable("Organisation", {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -14,6 +14,7 @@ const OrganisationModel = pgTable("Organisation", {
     owner: varchar().notNull(), // Primary owner address
     isActive: boolean().notNull().default(true),
     forests: integer().array().default([]),
+    addedFunds: varchar().default('0'), // Total funds invested in organization (in wei, stored as string)
 }, (table) => ({
     ownerFK: foreignKey({
         columns: [table.owner],
@@ -39,4 +40,4 @@ const OrganisationMemberModel = pgTable("OrganisationMemberModel", {
     }),
 }))
 
-module.exports = {OrganisationModel, OrganisationMemberModel};
+module.exports = { OrganisationModel, OrganisationMemberModel };
