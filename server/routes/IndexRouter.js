@@ -11,6 +11,7 @@ const invitationRouter = require("./InvitationRouter");
 const notificationRouter = require("./NotificationRouter");
 const userRouter = require("./UserRouter");
 const tokenRouter = require("./TokenRouter");
+const investmentRouter = require("./InvestmentRouter");
 
 // Auth routes
 router.use("/auth", authRouter);
@@ -44,5 +45,8 @@ router.use("/users", userRouter);
 
 // Token routes
 router.use("/token", tokenRouter);
+
+// Investment routes
+router.use("/investments", investmentRouter);
 
 module.exports = router;

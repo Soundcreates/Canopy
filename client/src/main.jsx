@@ -8,21 +8,24 @@ import { CarbonCreditNFTProvider } from './contexts/CarbonCreditNFTContext'
 import { SelectedForestProvider } from './contexts/SelectedForestContext'
 import { OrganisationProvider } from './contexts/OrganisationContext'
 import { GovernanceProvider } from './contexts/GovernanceContext'
+import { CTKTokenProvider } from './contexts/CTKTokenContext'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <WalletProvider>
-      <ForestRegistryProvider>
-        <CarbonCreditNFTProvider>
-          <SelectedForestProvider>
-            <OrganisationProvider>
-              <GovernanceProvider>
-                <App />
-              </GovernanceProvider>
-            </OrganisationProvider>
-          </SelectedForestProvider>
-        </CarbonCreditNFTProvider>
-      </ForestRegistryProvider>
+      <CTKTokenProvider>
+        <ForestRegistryProvider>
+          <CarbonCreditNFTProvider>
+            <SelectedForestProvider>
+              <OrganisationProvider>
+                <GovernanceProvider>
+                  <App />
+                </GovernanceProvider>
+              </OrganisationProvider>
+            </SelectedForestProvider>
+          </CarbonCreditNFTProvider>
+        </ForestRegistryProvider>
+      </CTKTokenProvider>
     </WalletProvider>
   </StrictMode>,
 )

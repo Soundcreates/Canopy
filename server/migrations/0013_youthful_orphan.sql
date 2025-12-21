@@ -1,0 +1,1 @@
+ALTER TABLE "Organisation" ADD COLUMN "addedFunds" varchar DEFAULT '0';

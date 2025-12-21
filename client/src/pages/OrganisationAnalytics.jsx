@@ -19,9 +19,11 @@ const OrganisationAnalytics = () => {
     const [organisation, setOrganisation] = useState(null);
     const [members, setMembers] = useState([]);
     const [forests, setForests] = useState([]);
+    const [orgForests, setOrgForests] = useState([]); // Organization's forests
     const [loading, setLoading] = useState(true);
     const [forestsLoading, setForestsLoading] = useState(true);
     const [isSessionActive, setIsSessionActive] = useState(false);
+    const [isMember, setIsMember] = useState(false);
 
     // Fetch Organization Details
     useEffect(() => {
@@ -33,12 +35,37 @@ const OrganisationAnalytics = () => {
 
                 if (response.organisation) {
                     setOrganisation(response.organisation);
+                    setIsMember(response.isMember || false);
+
                     if (response.members) {
                         console.log("Org Analytics: Members found:", response.members.length, response.members);
                         setMembers(response.members);
                     } else {
                         console.warn("Org Analytics: No members returned in response.members object");
                         setMembers([]);
+                    }
+
+                    // Fetch organization's forests if forest IDs are available
+                    if (response.organisation.forests && response.organisation.forests.length > 0) {
+                        try {
+                            const forestPromises = response.organisation.forests.map(async (forestId) => {
+                                try {
+                                    const forestResponse = await fetch(`${import.meta.env.VITE_BASE_URL || 'http://localhost:3000'}/api/forests/${forestId}`);
+                                    if (forestResponse.ok) {
+                                        return await forestResponse.json();
+                                    }
+                                } catch (err) {
+                                    console.error(`Error fetching forest ${forestId}:`, err);
+                                }
+                                return null;
+                            });
+                            const forestsData = await Promise.all(forestPromises);
+                            const validForests = forestsData.filter(f => f !== null);
+                            setOrgForests(validForests);
+                        } catch (err) {
+                            console.error('Error fetching organization forests:', err);
+                            setOrgForests([]);
+                        }
                     }
                 } else {
                     console.warn("Org Analytics: Unexpected response structure:", response);
@@ -64,12 +91,10 @@ const OrganisationAnalytics = () => {
         loadOrgDetails();
     }, [orgId, account]);
 
-    // Fetch User's Forests ("His Plots")
-    // Note: Ideally we should fetch organization's forests, but request said "his plots".
-    // We will stick to user's forests for now as "his plots".
+    // Fetch User's Forests ("His Plots") - Only if user is a member
     useEffect(() => {
         const loadForests = async () => {
-            if (!account) return;
+            if (!account || !isMember) return;
             setForestsLoading(true);
             try {
                 const response = await getForests();
@@ -141,7 +166,7 @@ const OrganisationAnalytics = () => {
         };
 
         loadForests();
-    }, [account]);
+    }, [account, isMember]);
 
     // Calculate/Derive Investors
     const investors = members.filter(m => m.role === 'INVESTOR' || m.role === 'investor');
@@ -227,11 +252,61 @@ const OrganisationAnalytics = () => {
                        I'll follow the order: Plots -> Members -> Tokens/KPIs -> Investors
                     */}
 
-                    {/* 1. His Plots (Forests) */}
-                    <div>
-                        <h2 className="text-sm font-mono text-emerald-500 uppercase tracking-wider mb-4">Your Plots</h2>
-                        <ForestTable forests={forests} loading={forestsLoading} />
-                    </div>
+                    {/* Organization Forests */}
+                    {orgForests.length > 0 && (
+                        <div>
+                            <h2 className="text-sm font-mono text-emerald-500 uppercase tracking-wider mb-4">
+                                Organization Forests ({orgForests.length})
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {orgForests.map((forest, idx) => (
+                                    <MagicCard key={idx} className="!p-6">
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between items-start">
+                                                <div className="text-sm font-mono text-white">
+                                                    FST-{String(forest.forestId || idx).padStart(4, '0')}
+                                                </div>
+                                                <div className={`text-xs px-2 py-0.5 rounded ${forest.isActive ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'
+                                                    }`}>
+                                                    {forest.isActive ? 'ACTIVE' : 'INACTIVE'}
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                                <div>
+                                                    <div className="text-gray-500 font-mono">Area</div>
+                                                    <div className="text-white font-medium">
+                                                        {((forest.area || 0) / 10000).toFixed(2)} ha
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-gray-500 font-mono">Carbon</div>
+                                                    <div className="text-white font-medium">
+                                                        {forest.totalCarbonCredits || 0}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {forest.lastNDVI && (
+                                                <div className="pt-2 border-t border-white/5">
+                                                    <div className="text-gray-500 font-mono text-xs">NDVI</div>
+                                                    <div className="text-emerald-400 font-medium">
+                                                        {parseFloat(forest.lastNDVI).toFixed(2)}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </MagicCard>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* User's Plots (if member) */}
+                    {isMember && forests.length > 0 && (
+                        <div>
+                            <h2 className="text-sm font-mono text-emerald-500 uppercase tracking-wider mb-4">Your Plots ({forests.length})</h2>
+                            <ForestTable forests={forests} loading={forestsLoading} />
+                        </div>
+                    )}
 
                     {/* 2. Members */}
                     <div>
@@ -239,18 +314,17 @@ const OrganisationAnalytics = () => {
                         <MembersTable members={members} />
                     </div>
 
-                    {/* 3. Tokens Raised (KPIs) */}
+                    {/* Performance & Tokens (KPIs) */}
                     <div>
                         <h2 className="text-sm font-mono text-emerald-500 uppercase tracking-wider mb-4">Performance & Tokens</h2>
                         <OrgKPIGrid
                             organisation={organisation}
                             stats={{
                                 totalMembers: members.length,
-                                totalForests: forests.length, // Or from organisation.totalForests if available
-                                totalArea: forests.reduce((acc, f) => acc + (f.area || 0), 0),
-                                totalCarbon: forests.reduce((acc, f) => acc + (parseInt(String(f.carbon).replace(/,/g, '')) || 0), 0),
-                                // "Tokens Raised" - currently not in model, using placeholder or derived
-                                tokensRaised: organisation?.tokensRaised || 0
+                                totalForests: (organisation?.forests?.length || 0) + members.reduce((acc, m) => acc + (m.forestsRegistered || 0), 0),
+                                totalArea: members.reduce((acc, m) => acc + (m.verifiedArea || 0), 0),
+                                totalCarbon: members.reduce((acc, m) => acc + (m.totalCarbonCredits || 0), 0),
+                                tokensRaised: organisation?.addedFunds ? parseFloat((BigInt(organisation.addedFunds) / BigInt(10 ** 18)).toString()) : 0
                             }}
                         />
                     </div>

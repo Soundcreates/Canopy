@@ -240,7 +240,20 @@ const OrganisationPage = () => {
 
                             {selectedOrganisation ? (
                                 <>
-                                    <OrgKPIGrid organisation={selectedOrganisation.organisation} />
+                                    <OrgKPIGrid
+                                        organisation={selectedOrganisation.organisation}
+                                        stats={{
+                                            totalMembers: selectedOrganisation.isMember
+                                                ? (selectedOrganisation.members?.length || 0)
+                                                : (selectedOrganisation.memberCount || 0),
+                                            totalForests: selectedOrganisation.members?.reduce((acc, m) => acc + (m.forestsRegistered || 0), 0) || 0,
+                                            totalArea: selectedOrganisation.members?.reduce((acc, m) => acc + (m.verifiedArea || 0), 0) || 0,
+                                            totalCarbon: selectedOrganisation.members?.reduce((acc, m) => acc + (m.totalCarbonCredits || 0), 0) || 0,
+                                            tokensRaised: selectedOrganisation.organisation?.addedFunds
+                                                ? parseFloat((BigInt(selectedOrganisation.organisation.addedFunds) / BigInt(10 ** 18)).toString())
+                                                : 0
+                                        }}
+                                    />
                                     <MembersTable members={selectedOrganisation.members || []} />
                                 </>
                             ) : organisations.length === 0 && !loadingOrgs ? (

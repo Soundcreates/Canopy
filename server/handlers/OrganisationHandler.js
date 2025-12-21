@@ -261,10 +261,33 @@ async function getOrganisationById(req, res) {
             }
         }
 
-        // Return public organization info (without member details)
+        // Return public organization info with basic member information (no detailed stats)
+        // Get all active members with basic info for public display
+        const publicMembers = await db.select({
+            userAddress: OrganisationMemberModel.userAddress,
+            role: OrganisationMemberModel.role,
+            joinedAt: OrganisationMemberModel.joinedAt,
+            displayName: UsersModel.displayName,
+        })
+            .from(OrganisationMemberModel)
+            .leftJoin(UsersModel, eq(OrganisationMemberModel.userAddress, UsersModel.address))
+            .where(and(
+                eq(OrganisationMemberModel.organisationId, parseInt(id)),
+                isNull(OrganisationMemberModel.leftDate)
+            ));
+
+        // Return basic member info without forest stats
+        const membersWithoutStats = publicMembers.map(m => ({
+            ...m,
+            forestsRegistered: 0,
+            verifiedArea: 0,
+            totalCarbonCredits: 0
+        }));
+
         return res.status(200).json({
             organisation: organisation[0],
-            members: [],
+            members: membersWithoutStats,
+            memberCount: publicMembers.length,
             isMember: false
         });
     } catch (error) {
