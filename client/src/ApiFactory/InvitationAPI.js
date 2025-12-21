@@ -8,7 +8,7 @@ const API_BASE_URL = getApiBaseUrl();
 export const sendInvitation = async (walletAddress, signature, organisationId, inviteeAddress, role = 'user') => {
     try {
         const message = 'Canopy invitation verification';
-        const response = await fetch(`${API_BASE_URL}/invitations/organisation/${organisationId}/invite`, {
+        const response = await fetch(`${API_BASE_URL}/api/invitations/organisation/${organisationId}/invite`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -40,7 +40,7 @@ export const sendInvitation = async (walletAddress, signature, organisationId, i
 export const acceptInvitation = async (walletAddress, signature, invitationId) => {
     try {
         const message = 'Canopy invitation acceptance';
-        const response = await fetch(`${API_BASE_URL}/invitations/${invitationId}/accept`, {
+        const response = await fetch(`${API_BASE_URL}/api/invitations/${invitationId}/accept`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -70,7 +70,7 @@ export const acceptInvitation = async (walletAddress, signature, invitationId) =
 export const rejectInvitation = async (walletAddress, signature, invitationId) => {
     try {
         const message = 'Canopy invitation rejection';
-        const response = await fetch(`${API_BASE_URL}/invitations/${invitationId}/reject`, {
+        const response = await fetch(`${API_BASE_URL}/api/invitations/${invitationId}/reject`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -99,7 +99,7 @@ export const rejectInvitation = async (walletAddress, signature, invitationId) =
  */
 export const getUserInvitations = async (walletAddress) => {
     try {
-        const response = await fetch(`${API_BASE_URL}/invitations?address=${walletAddress}`, {
+        const response = await fetch(`${API_BASE_URL}/api/invitations?address=${walletAddress}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
