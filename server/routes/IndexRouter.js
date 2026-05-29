@@ -49,4 +49,9 @@ router.use("/token", tokenRouter);
 // Investment routes
 router.use("/investments", investmentRouter);
 
+// Health check
+router.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 module.exports = router;
